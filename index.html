@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuProfe20 Lab · Sólidos de revolución</title>
+
+    <!-- Tailwind CSS, React 18, ReactDOM, Babel y Three.js r128 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- KaTeX para fórmulas matemáticas nítidas -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+        html, body { margin: 0; padding: 0; background: #0a0322; }
+        body { font-family: 'Nunito', sans-serif; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+        button { user-select: none; }
+
+        /* Fondo neón principal */
+        .app-bg {
+            background:
+                radial-gradient(circle at 12% 18%, rgba(255, 0, 170, 0.35), transparent 38%),
+                radial-gradient(circle at 88% 12%, rgba(0, 229, 255, 0.30), transparent 40%),
+                radial-gradient(circle at 70% 92%, rgba(198, 255, 0, 0.16), transparent 42%),
+                linear-gradient(135deg, #0a0322 0%, #1b0a52 45%, #33084f 100%);
+        }
+        .stage-bg {
+            background:
+                radial-gradient(circle at 50% 45%, rgba(124, 58, 237, 0.45), transparent 60%),
+                linear-gradient(180deg, #120838 0%, #070219 100%);
+        }
+        .blob { position: absolute; width: 42vmax; height: 42vmax; border-radius: 9999px; filter: blur(90px); opacity: 0.22; animation: blobMove 20s ease-in-out infinite; }
+        @keyframes blobMove { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(6vw,-4vh) scale(1.1); } 66% { transform: translate(-5vw,5vh) scale(0.92); } }
+
+        .neon-text { background: linear-gradient(90deg, #00f0ff, #ff3df2, #ffe600); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .neon-text-big { background: linear-gradient(90deg, #00f0ff 0%, #ff3df2 40%, #ff9a00 70%, #c6ff00 100%); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 6s linear infinite; filter: drop-shadow(0 0 18px rgba(255, 61, 242, 0.45)); }
+        @keyframes shine { to { background-position: 200% center; } }
+
+        @keyframes floatUp { 0% { transform: translateY(105vh) rotate(0deg); } 100% { transform: translateY(-110vh) rotate(360deg); } }
+        @keyframes slideInRight { 0% { opacity: 0; transform: translateX(14px); } 100% { opacity: 1; transform: translateX(0); } }
+        @keyframes robotFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        @keyframes robotThinkTilt { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(6deg) translateY(-3px); } }
+        @keyframes robotJump { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-14px); } }
+        @keyframes robotTalkArmL { 0%, 100% { transform: rotate(45deg); } 50% { transform: rotate(95deg); } }
+        @keyframes robotTalkArmR { 0%, 100% { transform: rotate(-45deg); } 50% { transform: rotate(-95deg); } }
+        @keyframes confettiExplosion { 0% { transform: translate(0,0) scale(1) rotate(0deg); opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) scale(0) rotate(var(--rot)); opacity: 0; } }
+        @keyframes finalGlowNeon { 0%, 100% { box-shadow: 0 0 10px rgba(16,185,129,0.45); } 50% { box-shadow: 0 0 28px rgba(198,255,0,0.9); } }
+
+        .animate-floatUp { animation: floatUp linear infinite; }
+        .animate-slideInRight { animation: slideInRight 0.3s ease-out forwards; }
+        .animate-robotFloat { animation: robotFloat 3s ease-in-out infinite; }
+        .animate-robotThinkTilt { animation: robotThinkTilt 2s ease-in-out infinite; }
+        .animate-robotJump { animation: robotJump 1s cubic-bezier(0.28, 0.84, 0.42, 1) infinite; }
+        .animate-robotTalkArmL { animation: robotTalkArmL 0.6s ease-in-out infinite; }
+        .animate-robotTalkArmR { animation: robotTalkArmR 0.6s ease-in-out infinite 0.1s; }
+        .animate-confettiExplosion { animation: confettiExplosion 1.8s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+        .animate-finalGlowNeon { animation: finalGlowNeon 1.6s ease-in-out infinite; }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none !important; }
+        .scrollbar-hide { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+
+        /* Deslizadores neón */
+        input[type=range].neon-range { -webkit-appearance: none; appearance: none; height: 12px; border-radius: 9999px; outline: none; cursor: pointer; }
+        input[type=range].neon-range::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 9999px; background: #fff; border: 4px solid #ff3df2; box-shadow: 0 0 14px #ff3df2, 0 0 4px #fff; }
+        input[type=range].neon-range::-moz-range-thumb { width: 22px; height: 22px; border-radius: 9999px; background: #fff; border: 4px solid #ff3df2; box-shadow: 0 0 14px #ff3df2; }
+
+        /* KaTeX */
+        .katex { font-weight: 800 !important; }
+        .katex-display { margin: 0 !important; padding: 0 !important; }
+        .math-flow-line { width: 100%; display: flex; align-items: center; overflow-x: auto; padding: 0.15rem 0; }
+        .math-card .katex { font-size: clamp(0.9rem, 1.2vw, 1.12rem) !important; color: #0f172a !important; }
+        .math-current .katex { font-size: clamp(1rem, 1.45vw, 1.35rem) !important; color: #0f172a !important; }
+        .math-final .katex { font-size: clamp(1.05rem, 1.55vw, 1.45rem) !important; color: #065f46 !important; }
+        .math-history .katex { font-size: clamp(0.88rem, 1.15vw, 1.1rem) !important; color: #475569 !important; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, memo, useCallback } = React;
+
+
+        // =========================================================================
+        // 1. ICONOS SVG INLINE
+        // =========================================================================
+        const Icon = ({ paths, className = "", size = 24, fill = "none", strokeWidth = "2.5" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} dangerouslySetInnerHTML={{ __html: paths }} />
+        );
+
+        const VolumeX = (p) => <Icon {...p} paths='<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>' />;
+        const Volume2 = (p) => <Icon {...p} paths='<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>' />;
+        const Rocket = (p) => <Icon {...p} paths='<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>' />;
+        const Sparkles = (p) => <Icon {...p} paths='<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M3 5h4"/><path d="M19 3v4"/><path d="M17 5h4"/>' />;
+        const Home = (p) => <Icon {...p} paths='<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>' />;
+        const ChevronLeft = (p) => <Icon {...p} paths='<polyline points="15 18 9 12 15 6"/>' />;
+        const ChevronRight = (p) => <Icon {...p} paths='<polyline points="9 18 15 12 9 6"/>' />;
+        const BoxIcon = (p) => <Icon {...p} paths='<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>' />;
+        const HandPointer = (p) => <Icon {...p} paths='<path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/><path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>' />;
+        const Play = (p) => <Icon {...p} paths='<polygon points="6 3 20 12 6 21 6 3"/>' />;
+        const Pause = (p) => <Icon {...p} paths='<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>' />;
+        const RotateCcw = (p) => <Icon {...p} paths='<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>' />;
+
+
+        // =========================================================================
+        // 2. CONTROLADOR DE AUDIO (WEB AUDIO API)
+        // =========================================================================
+        const AudioController = {
+            ctx: null, muted: false, bgmNode: null,
+            init: function() {
+                if (this.ctx) return;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) this.ctx = new AudioContext();
+            },
+            startBGM: function() {
+                if (!this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+                if (this.bgmNode) return;
+                const mainGain = this.ctx.createGain();
+                mainGain.gain.value = this.muted ? 0 : 0.045;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 760;
+                filter.connect(mainGain);
+                mainGain.connect(this.ctx.destination);
+                this.bgmNode = { mainGain, filter, interval: null };
+                const chords = [[55, 60, 64, 71], [52, 57, 64, 71], [53, 57, 60, 64], [50, 55, 59, 64]];
+                let chordIndex = 0;
+                const playChord = () => {
+                    if (this.ctx.state !== 'running') return;
+                    const chord = chords[chordIndex];
+                    chordIndex = (chordIndex + 1) % chords.length;
+                    chord.forEach((midi, i) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = 440 * Math.pow(2, (midi - 69) / 12);
+                        const now = this.ctx.currentTime;
+                        const delay = i * 0.2;
+                        gain.gain.setValueAtTime(0, now + delay);
+                        gain.gain.linearRampToValueAtTime(0.14, now + delay + 2);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 7.5);
+                        osc.connect(gain);
+                        gain.connect(filter);
+                        osc.start(now + delay);
+                        osc.stop(now + delay + 7.5);
+                    });
+                };
+                playChord();
+                this.bgmNode.interval = setInterval(playChord, 6000);
+            },
+            play: function(type) {
+                if (this.muted || !this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                const now = this.ctx.currentTime;
+                if (type === 'pop') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(840, now + 0.1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'hover') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(660, now);
+                    osc.frequency.exponentialRampToValueAtTime(780, now + 0.05);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'pop-reverse') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(640, now);
+                    osc.frequency.exponentialRampToValueAtTime(280, now + 0.12);
+                    gain.gain.setValueAtTime(0.16, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'success') {
+                    osc.disconnect();
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, i) => {
+                        const o = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        o.type = 'triangle';
+                        o.frequency.value = freq;
+                        o.connect(g);
+                        g.connect(this.ctx.destination);
+                        const startTime = now + (i * 0.07);
+                        g.gain.setValueAtTime(0, startTime);
+                        g.gain.linearRampToValueAtTime(0.18, startTime + 0.04);
+                        g.gain.linearRampToValueAtTime(0, startTime + 0.35);
+                        o.start(startTime);
+                        o.stop(startTime + 0.35);
+                    });
+                } else if (type === 'swoosh') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(280, now);
+                    osc.frequency.exponentialRampToValueAtTime(75, now + 0.18);
+                    gain.gain.setValueAtTime(0.16, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                }
+            },
+            toggleMute: function() {
+                this.muted = !this.muted;
+                if (this.bgmNode && this.ctx) {
+                    this.bgmNode.mainGain.gain.setTargetAtTime(this.muted ? 0 : 0.045, this.ctx.currentTime, 0.1);
+                }
+                return this.muted;
+            }
+        };
+
+        // =========================================================================
+        // 3. COMPONENTE KATEX
+        // =========================================================================
+        const MathDisplay = memo(({ latex, className = "", inline = false, align = "left" }) => {
+            const containerRef = useRef(null);
+            useEffect(() => {
+                if (containerRef.current && window.katex) {
+                    try {
+                        window.katex.render(latex, containerRef.current, {
+                            displayMode: !inline,
+                            throwOnError: false,
+                            strict: false,
+                            trust: true
+                        });
+                    } catch (e) {
+                        containerRef.current.innerText = latex;
+                    }
+                }
+            }, [latex, inline]);
+
+            if (inline) return <span ref={containerRef} className={`inline-block align-middle ${className}`} />;
+            return (
+                <div className={`math-flow-line scrollbar-hide ${align === 'center' ? 'justify-center' : 'justify-start'} ${className}`}>
+                    <div ref={containerRef} className={align === 'center' ? 'text-center' : 'text-left'} />
+                </div>
+            );
+        });
+
+        // =========================================================================
+        // 4. PIZARRA INTERACTIVA COMPLETA
+        // =========================================================================
+        const DrawingCanvas = () => {
+            const canvasRef = useRef(null);
+            const [isDrawing, setIsDrawing] = useState(false);
+            const [isDrawMode, setIsDrawMode] = useState(false);
+            const [tool, setTool] = useState('pen');
+            const [isSnapMode, setIsSnapMode] = useState(false);
+            const [penColor, setPenColor] = useState('#ef4444');
+            const [penWidth, setPenWidth] = useState(6);
+            const penPointsRef = useRef([]);
+            const activePointerRef = useRef(null);
+            const savedImageRef = useRef(null);
+            const startPosRef = useRef({ x: 0, y: 0 });
+            const historyRef = useRef([]);
+
+            const playPop = () => { AudioController.init(); AudioController.startBGM(); AudioController.play('pop'); };
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas || !canvas.parentElement) return;
+                let rafId = null;
+                const updateSize = (entries) => {
+                    const entry = entries[entries.length - 1];
+                    if (!entry) return;
+                    const width = Math.floor(entry.contentRect.width);
+                    const height = Math.floor(entry.contentRect.height);
+                    if (width <= 0 || height <= 0) return;
+                    if (rafId) cancelAnimationFrame(rafId);
+                    rafId = requestAnimationFrame(() => {
+                        if (!canvas || (canvas.width === width && canvas.height === height)) return;
+                        const ctx = canvas.getContext('2d');
+                        let imgData = null;
+                        if (canvas.width > 0 && canvas.height > 0) {
+                            try { imgData = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch (e) {}
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        if (imgData) ctx.putImageData(imgData, 0, 0);
+                    });
+                };
+                const observer = new ResizeObserver(updateSize);
+                observer.observe(canvas.parentElement);
+                return () => {
+                    if (rafId) cancelAnimationFrame(rafId);
+                    observer.disconnect();
+                };
+            }, []);
+
+            const renderPen = (points, straight = false) => {
+                const ctx = canvasRef.current.getContext('2d');
+                ctx.putImageData(savedImageRef.current, 0, 0);
+                const angle = -15 * Math.PI / 180;
+                const c = Math.cos(angle), s = Math.sin(angle);
+                const local = points.map(p => ({ x: c * p.x + s * p.y, y: (-s * p.x + c * p.y) / 0.5 }));
+                ctx.save();
+                ctx.transform(c, s, -0.5 * s, 0.5 * c, 0, 0);
+                ctx.lineWidth = penWidth;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = penColor;
+                ctx.fillStyle = penColor;
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.beginPath();
+                ctx.moveTo(local[0].x, local[0].y);
+                if (local.length === 1) {
+                    ctx.arc(local[0].x, local[0].y, penWidth / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    if (!straight) {
+                        for (let i = 1; i < local.length - 1; i++) {
+                            const midpoint = {
+                                x: (local[i].x + local[i + 1].x) / 2,
+                                y: (local[i].y + local[i + 1].y) / 2
+                            };
+                            ctx.quadraticCurveTo(local[i].x, local[i].y, midpoint.x, midpoint.y);
+                        }
+                    }
+                    const last = local[local.length - 1];
+                    ctx.lineTo(last.x, last.y);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            };
+
+            const startDrawing = (e) => {
+                if (!isDrawMode || activePointerRef.current !== null || (e.pointerType === 'mouse' && e.button !== 0)) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+
+                historyRef.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.lineWidth = tool === 'highlighter' ? 24 : penWidth;
+                ctx.strokeStyle = tool === 'highlighter' ? `${penColor}4D` : penColor;
+                ctx.globalCompositeOperation = tool === 'highlighter' ? 'multiply' : 'source-over';
+
+                const startX = e.clientX - rect.left;
+                const startY = e.clientY - rect.top;
+
+                savedImageRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                startPosRef.current = { x: startX, y: startY };
+
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                penPointsRef.current = [{ x: startX, y: startY }];
+                activePointerRef.current = e.pointerId;
+                canvas.setPointerCapture(e.pointerId);
+                if (tool === 'pen') renderPen(penPointsRef.current);
+                setIsDrawing(true);
+            };
+
+            const draw = (e) => {
+                if (activePointerRef.current !== e.pointerId || !isDrawMode) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+
+                if (isSnapMode || e.shiftKey) {
+                    ctx.putImageData(savedImageRef.current, 0, 0);
+                    const dx = currentX - startPosRef.current.x;
+                    const dy = currentY - startPosRef.current.y;
+                    const angle = Math.atan2(dy, dx);
+                    const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const snapX = startPosRef.current.x + Math.cos(snappedAngle) * dist;
+                    const snapY = startPosRef.current.y + Math.sin(snappedAngle) * dist;
+                    if (tool === 'pen') {
+                        renderPen([startPosRef.current, { x: snapX, y: snapY }], true);
+                        return;
+                    }
+                    ctx.beginPath();
+                    ctx.moveTo(startPosRef.current.x, startPosRef.current.y);
+                    ctx.lineTo(snapX, snapY);
+                    ctx.stroke();
+                } else {
+                    if (tool === 'pen') {
+                        const events = e.nativeEvent?.getCoalescedEvents?.() || [];
+                        const samples = events.length ? events : [e];
+                        samples.forEach(sample => penPointsRef.current.push({
+                            x: sample.clientX - rect.left,
+                            y: sample.clientY - rect.top
+                        }));
+                        renderPen(penPointsRef.current);
+                        return;
+                    }
+                    if (tool === 'highlighter') ctx.putImageData(savedImageRef.current, 0, 0);
+                    ctx.lineTo(currentX, currentY);
+                    ctx.stroke();
+                }
+            };
+
+            const stopDrawing = () => {
+                const canvas = canvasRef.current;
+                const pointer = activePointerRef.current;
+                activePointerRef.current = null;
+                if (pointer !== null && canvas && canvas.hasPointerCapture(pointer)) {
+                    canvas.releasePointerCapture(pointer);
+                }
+                if (isDrawing && canvas) {
+                    canvas.getContext('2d').closePath();
+                    setIsDrawing(false);
+                }
+            };
+
+            const selectTool = (nextTool) => {
+                stopDrawing();
+                playPop();
+                const enabled = nextTool !== 'selector' && !(isDrawMode && tool === nextTool);
+                setIsDrawMode(enabled);
+                if (nextTool !== 'selector') setTool(nextTool);
+            };
+
+            useEffect(() => {
+                const onKey = (event) => {
+                    if (event.key === 'Escape') {
+                        setIsDrawing(false);
+                        setIsDrawMode(false);
+                    }
+                    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+                        if (historyRef.current.length > 0 && canvasRef.current) {
+                            playPop();
+                            const lastState = historyRef.current.pop();
+                            canvasRef.current.getContext('2d').putImageData(lastState, 0, 0);
+                            savedImageRef.current = lastState;
+                        }
+                    }
+                };
+                window.addEventListener('keydown', onKey);
+                return () => window.removeEventListener('keydown', onKey);
+            }, []);
+
+            const clearCanvas = () => {
+                playPop();
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                historyRef.current.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                savedImageRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            };
+
+            const colors = [
+                { name: 'Rojo', hex: '#ef4444', tw: 'bg-[#ef4444]' },
+                { name: 'Negro', hex: '#0f172a', tw: 'bg-[#0f172a]' },
+                { name: 'Azul', hex: '#3b82f6', tw: 'bg-[#3b82f6]' },
+                { name: 'Verde', hex: '#22c55e', tw: 'bg-[#22c55e]' },
+                { name: 'Amarillo', hex: '#facc15', tw: 'bg-[#facc15]' }
+            ];
+
+            return (
+                <>
+                    <div style={{ zIndex: 120, pointerEvents: 'auto' }} className="absolute top-2 right-2 flex flex-wrap max-w-[calc(100%-1rem)] justify-end gap-1.5 bg-white/85 p-1.5 rounded-xl backdrop-blur-sm shadow-md border border-slate-200">
+                        <button onClick={() => selectTool('selector')} aria-pressed={!isDrawMode} title="Explorar / Girar 3D (Esc)" className={`px-2.5 py-1 text-xs font-black rounded-lg border-2 shadow-sm transition-all ${!isDrawMode ? 'bg-cyan-500 text-white border-cyan-600' : 'bg-white text-slate-600 border-slate-300'}`}>🖱️ Explorar 3D</button>
+                        <button onClick={() => selectTool('pen')} className={`px-2.5 py-1 text-xs font-black rounded-lg border-2 shadow-sm transition-all ${isDrawMode && tool === 'pen' ? 'bg-indigo-500 text-white border-indigo-600 scale-105' : 'bg-white text-slate-600 border-slate-300'}`}>🖊️ Lápiz</button>
+                        <button onClick={() => selectTool('highlighter')} className={`px-2.5 py-1 text-xs font-black rounded-lg border-2 shadow-sm transition-all ${isDrawMode && tool === 'highlighter' ? 'bg-yellow-400 text-slate-900 border-yellow-500 scale-105' : 'bg-white text-slate-600 border-slate-300'}`}>🖍️ Resaltador</button>
+                        {isDrawMode && tool === 'pen' && (
+                            <label className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white border-2 border-indigo-200 text-xs font-black text-slate-700">
+                                Grosor <input type="range" min="3" max="16" step="1" value={penWidth} onChange={e => setPenWidth(Number(e.target.value))} className="w-16 accent-indigo-600" />
+                            </label>
+                        )}
+                        {isDrawMode && (
+                            <>
+                                <button onClick={() => { playPop(); setIsSnapMode(!isSnapMode); }} className={`px-2.5 py-1 text-xs font-black rounded-lg border-2 shadow-sm transition-all ${isSnapMode ? 'bg-blue-500 text-white border-blue-600 scale-105' : 'bg-white text-slate-600 border-slate-300'}`}>📐 Recto</button>
+                                <button onClick={clearCanvas} className="px-2.5 py-1 text-xs font-black bg-white text-rose-600 border-2 border-rose-300 rounded-lg shadow-sm hover:bg-rose-50 active:scale-95 transition-all">🗑️ Limpiar</button>
+                                <div className="px-2 py-1 text-[11px] font-bold text-slate-400 hidden sm:flex items-center bg-white rounded-lg border border-slate-200">CTRL+Z</div>
+                            </>
+                        )}
+                    </div>
+                    {isDrawMode && (
+                        <div className="absolute top-1/2 right-3 -translate-y-1/2 z-[110] flex flex-col gap-2.5 p-2 bg-white/90 backdrop-blur-md rounded-xl border-[3px] border-slate-200 shadow-xl pointer-events-auto">
+                            {colors.map(c => (
+                                <button key={c.hex} onClick={() => { playPop(); setPenColor(c.hex); }} title={c.name} className={`w-8 h-8 rounded-full border-[3px] shadow-sm transition-all hover:scale-110 active:scale-95 ${c.tw} ${penColor === c.hex ? 'border-white outline outline-[3px] outline-slate-800 scale-110' : 'border-black/20'}`} />
+                            ))}
+                        </div>
+                    )}
+                    <canvas
+                        ref={canvasRef}
+                        style={{ zIndex: 100, pointerEvents: isDrawMode ? 'auto' : 'none', touchAction: isDrawMode ? 'none' : 'auto' }}
+                        className={`absolute inset-0 z-[100] touch-none ${isDrawMode ? 'cursor-crosshair pointer-events-auto' : 'pointer-events-none'}`}
+                        onPointerDown={startDrawing}
+                        onPointerMove={draw}
+                        onPointerUp={e => { if (activePointerRef.current === e.pointerId) { draw(e); stopDrawing(); } }}
+                        onPointerLeave={e => { if (!e.currentTarget.hasPointerCapture(e.pointerId)) stopDrawing(); }}
+                        onLostPointerCapture={stopDrawing}
+                        onPointerCancel={stopDrawing}
+                    />
+                </>
+            );
+        };
+
+        // =========================================================================
+        // 5b. ROBOT ASISTENTE (de la simulación original)
+        // =========================================================================
+        const RobotAssistant = ({ step, maxSteps, isHighlighting }) => {
+            const isFinalStep = step >= maxSteps;
+            const isThinking = step === maxSteps - 1 && maxSteps > 1;
+
+            const getContainerAnim = () => {
+                if (isFinalStep) return 'animate-robotJump';
+                if (isThinking) return 'animate-robotThinkTilt';
+                return 'animate-robotFloat';
+            };
+            const getArmLAnim = () => {
+                if (isFinalStep) return 'rotate-[150deg] animate-pulse';
+                if (step > 0 || isHighlighting) return 'animate-robotTalkArmL';
+                return 'rotate-45';
+            };
+            const getArmRAnim = () => {
+                if (isFinalStep) return '-rotate-[150deg] animate-pulse';
+                if (step > 0 || isHighlighting) return 'animate-robotTalkArmR';
+                return '-rotate-45';
+            };
+            const getEyes = () => {
+                if (isFinalStep) return <div className="w-full flex justify-between px-1"><div className="w-2.5 h-1.5 bg-emerald-400 rounded-t-full mt-0.5"></div><div className="w-2.5 h-1.5 bg-emerald-400 rounded-t-full mt-0.5"></div></div>;
+                if (isHighlighting) return <div className="w-full flex justify-between px-1"><div className="w-2.5 h-2.5 bg-yellow-300 rounded-full animate-ping"></div><div className="w-2.5 h-2.5 bg-yellow-300 rounded-full animate-ping"></div></div>;
+                if (step === 0) return <div className="w-full flex justify-between px-1.5"><div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div><div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div></div>;
+                return <div className="w-full flex justify-between px-1"><div className="w-2.5 h-2.5 bg-yellow-400 rounded-full animate-bounce"></div><div className="w-2.5 h-2.5 bg-yellow-400 rounded-full animate-bounce"></div></div>;
+            };
+            const getMouth = () => {
+                if (isFinalStep) return <div className="w-4 h-2.5 bg-rose-400 rounded-b-full mt-1"></div>;
+                if (step === 0 && !isHighlighting) return <div className="w-3 h-1 bg-cyan-300 rounded-full mt-1"></div>;
+                return <div className="w-2.5 h-2.5 bg-rose-400 rounded-full mt-1 animate-ping"></div>;
+            };
+
+            return (
+                <div className={`relative flex flex-col items-center drop-shadow-xl select-none ${getContainerAnim()}`}>
+                    <div className="relative z-0 flex flex-col items-center translate-y-1">
+                        <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_10px_currentColor] z-10 transition-colors duration-300 ${isFinalStep ? 'text-emerald-400 bg-emerald-400' : 'text-yellow-400 bg-yellow-400 animate-pulse'}`}></div>
+                        <div className="w-1.5 h-3 bg-slate-300"></div>
+                    </div>
+                    <div className="relative z-10 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-white to-slate-200 rounded-xl border-[2.5px] border-indigo-400 shadow-xl flex flex-col items-center justify-center p-1">
+                        <div className="w-full h-full bg-slate-900 rounded-lg flex flex-col items-center justify-center p-1 shadow-inner border-[1.5px] border-indigo-500">
+                            {getEyes()}
+                            {getMouth()}
+                        </div>
+                    </div>
+                    <div className={`absolute top-1/2 -left-1.5 w-2 h-4 bg-slate-200 border-[2px] border-indigo-400 rounded-full z-0 origin-top ${getArmLAnim()}`}></div>
+                    <div className={`absolute top-1/2 -right-1.5 w-2 h-4 bg-slate-200 border-[2px] border-indigo-400 rounded-full z-0 origin-top ${getArmRAnim()}`}></div>
+                </div>
+            );
+        };
+
+        // @@MATH-START
+        // =========================================================================
+        // 3. MATEMÁTICA PURA (formato peruano: coma decimal) + EJEMPLOS RESUELTOS
+        // =========================================================================
+        const PI_A = 3.14; // π aproximado que usamos en toda la simulación
+
+        // Número con coma decimal y espacio de miles (estilo Perú): 1 234,56
+        function fmtNum(x, dec = 2) {
+            const p = Math.pow(10, dec);
+            const v = Math.round((x + Number.EPSILON) * p) / p;
+            const parts = Math.abs(v).toFixed(dec).split('.');
+            let ent = parts[0];
+            let d = (parts[1] || '').replace(/0+$/, '');
+            ent = ent.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            return (v < 0 ? '-' : '') + ent + (d ? ',' + d : '');
+        }
+        // Lo mismo, para KaTeX
+        function texNum(x, dec = 2) {
+            return fmtNum(x, dec).replace(',', '{,}').replace(/ /g, '\\,');
+        }
+        function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { const t = b; b = a % b; a = t; } return a; }
+        // n = k² · m (m libre de cuadrados)
+        function simplifySqrt(n) {
+            let k = 1, m = n;
+            for (let f = 2; f * f <= m; f++) {
+                while (m % (f * f) === 0) { m /= f * f; k *= f; }
+            }
+            return { k, m };
+        }
+        const piTex = (c) => (c === 1 ? '\\pi' : `${texNum(c)}\\pi`);
+        function fracPiTex(num, den) {
+            const g = gcd(num, den); const n = num / g, d = den / g;
+            if (d === 1) return piTex(n);
+            return `\\dfrac{${texNum(n)}}{${d}}\\pi`;
+        }
+        const uTex = (u, p) => (p === 1 ? `\\ \\text{${u}}` : `\\ \\text{${u}}^{${p}}`);
+        const uTxt = (u, p) => (p === 1 ? u : p === 2 ? `${u}²` : `${u}³`);
+
+        // ---------- Calculadora en vivo (laboratorio) ----------
+        function calcSolid(type, r, h) {
+            const u = 'cm';
+            if (type === 'cilindro') {
+                const AL = 2 * r * h, AB = r * r, AT = 2 * r * (h + r), V = r * r * h;
+                return [
+                    { key: 'AL', name: 'Área lateral', hl: ['lateral'], formula: 'A_L = 2\\pi r h', line: `A_L = 2\\pi(${r})(${h}) = ${piTex(AL)} \\approx ${texNum(AL * PI_A)}${uTex(u, 2)}`, value: AL * PI_A, exact: AL, unit: uTxt(u, 2) },
+                    { key: 'AB', name: 'Área de una base', hl: ['bases'], formula: 'A_B = \\pi r^2', line: `A_B = \\pi(${r})^2 = ${piTex(AB)} \\approx ${texNum(AB * PI_A)}${uTex(u, 2)}`, value: AB * PI_A, exact: AB, unit: uTxt(u, 2) },
+                    { key: 'AT', name: 'Área total', hl: ['lateral', 'bases'], formula: 'A_T = A_L + 2A_B = 2\\pi r(h + r)', line: `A_T = ${piTex(AL)} + 2(${piTex(AB)}) = ${piTex(AT)} \\approx ${texNum(AT * PI_A)}${uTex(u, 2)}`, value: AT * PI_A, exact: AT, unit: uTxt(u, 2) },
+                    { key: 'V', name: 'Volumen', hl: ['volumen'], formula: 'V = \\pi r^2 h', line: `V = \\pi(${r})^2(${h}) = ${piTex(V)} \\approx ${texNum(V * PI_A)}${uTex(u, 3)}`, value: V * PI_A, exact: V, unit: uTxt(u, 3) }
+                ];
+            }
+            if (type === 'cono') {
+                const g2 = r * r + h * h; const { k, m } = simplifySqrt(g2); const g = Math.sqrt(g2);
+                const exactG = m === 1;
+                const gTex = exactG ? `${k}` : (k === 1 ? `\\sqrt{${m}}` : `${k}\\sqrt{${m}}`);
+                const gLine = exactG
+                    ? `g = \\sqrt{${r}^2 + ${h}^2} = \\sqrt{${g2}} = ${k}${uTex(u, 1)}`
+                    : `g = \\sqrt{${r}^2 + ${h}^2} = \\sqrt{${g2}}${k > 1 ? ` = ${gTex}` : ''} \\approx ${texNum(g)}${uTex(u, 1)}`;
+                const AB = r * r, V3 = r * r * h;
+                const alTex = exactG ? piTex(r * k) : `${r * k === 1 ? '' : r * k}\\sqrt{${m}}\\,\\pi`;
+                const atTex = exactG ? piTex(r * k + AB) : `(${AB} + ${r * k === 1 ? '' : r * k}\\sqrt{${m}})\\pi`;
+                const ALv = r * g * PI_A, ATv = (r * g + AB) * PI_A, Vv = (V3 / 3) * PI_A;
+                return [
+                    { key: 'g', name: 'Generatriz', hl: ['generatriz'], formula: 'g = \\sqrt{r^2 + h^2}', line: gLine, value: g, exact: exactG ? k : null, unit: u },
+                    { key: 'AL', name: 'Área lateral', hl: ['lateral'], formula: 'A_L = \\pi r g', line: `A_L = \\pi(${r})(${gTex}) = ${alTex} \\approx ${texNum(ALv)}${uTex(u, 2)}`, value: ALv, exact: exactG ? r * k : null, unit: uTxt(u, 2) },
+                    { key: 'AB', name: 'Área de la base', hl: ['base'], formula: 'A_B = \\pi r^2', line: `A_B = \\pi(${r})^2 = ${piTex(AB)} \\approx ${texNum(AB * PI_A)}${uTex(u, 2)}`, value: AB * PI_A, exact: AB, unit: uTxt(u, 2) },
+                    { key: 'AT', name: 'Área total', hl: ['lateral', 'base'], formula: 'A_T = A_L + A_B = \\pi r(g + r)', line: `A_T = ${alTex} + ${piTex(AB)} = ${atTex} \\approx ${texNum(ATv)}${uTex(u, 2)}`, value: ATv, exact: exactG ? r * k + AB : null, unit: uTxt(u, 2) },
+                    { key: 'V', name: 'Volumen', hl: ['volumen'], formula: 'V = \\dfrac{\\pi r^2 h}{3}', line: `V = \\dfrac{\\pi(${r})^2(${h})}{3} = ${fracPiTex(V3, 3)} \\approx ${texNum(Vv)}${uTex(u, 3)}`, value: Vv, exact: V3 / 3, unit: uTxt(u, 3) }
+                ];
+            }
+            const A = 4 * r * r, V3 = 4 * r * r * r;
+            return [
+                { key: 'd', name: 'Diámetro', hl: ['diametro'], formula: 'd = 2r', line: `d = 2(${r}) = ${2 * r}${uTex(u, 1)}`, value: 2 * r, exact: 2 * r, unit: u },
+                { key: 'A', name: 'Área de la superficie esférica', hl: ['superficie'], formula: 'A = 4\\pi r^2', line: `A = 4\\pi(${r})^2 = ${piTex(A)} \\approx ${texNum(A * PI_A)}${uTex(u, 2)}`, value: A * PI_A, exact: A, unit: uTxt(u, 2) },
+                { key: 'V', name: 'Volumen', hl: ['volumen'], formula: 'V = \\dfrac{4}{3}\\pi r^3', line: `V = \\dfrac{4}{3}\\pi(${r})^3 = ${fracPiTex(V3, 3)} \\approx ${texNum((V3 / 3) * PI_A)}${uTex(u, 3)}`, value: (V3 / 3) * PI_A, exact: V3 / 3, unit: uTxt(u, 3) }
+            ];
+        }
+
+        // ---------- Ejemplos resueltos (2 por magnitud y por sólido) ----------
+        const EXAMPLE_DATA = {
+            cilindro: {
+                AL: [
+                    { r: 3, h: 5, u: 'cm', title: 'La etiqueta de la lata', text: 'Una lata de leche tiene forma de cilindro con **radio 3 cm** y **altura 5 cm**. ¿Cuánto papel se necesita para su etiqueta (área lateral)?' },
+                    { r: 4, h: 10, u: 'cm', title: 'El tubo de cartón', text: 'Un tubo de cartón mide **10 cm de alto** y su base tiene **radio 4 cm**. ¿Cuál es su área lateral?' }
+                ],
+                AT: [
+                    { r: 2, h: 5, u: 'cm', title: 'Forrar la cajita de dulces', text: 'Queremos forrar por completo (con tapa y fondo) una cajita cilíndrica de **radio 2 cm** y **altura 5 cm**. ¿Cuánto papel necesitamos?' },
+                    { r: 5, h: 7, u: 'cm', title: 'El tambor de juguete', text: 'Un tambor de juguete es un cilindro cerrado de **radio 5 cm** y **altura 7 cm**. Calcula su área total.' }
+                ],
+                V: [
+                    { r: 3, h: 4, u: 'cm', title: '¿Cuánto jugo cabe?', text: 'Un vaso cilíndrico tiene **radio 3 cm** y **altura 4 cm**. ¿Cuánto jugo le cabe (volumen)?' },
+                    { r: 5, h: 6, u: 'cm', title: 'La maceta', text: 'Una maceta cilíndrica tiene **radio 5 cm** y **altura 6 cm**. ¿Cuánta tierra entra en ella?' }
+                ]
+            },
+            cono: {
+                AL: [
+                    { r: 3, h: 4, u: 'cm', title: 'El gorro de fiesta', text: 'Un gorro de fiesta tiene forma de cono con **radio 3 cm** y **altura 4 cm**. ¿Cuánto cartón se usó (área lateral)?' },
+                    { r: 6, h: 8, u: 'm', title: 'El techo de la torre', text: 'El techo de una torre es un cono de **radio 6 m** y **altura 8 m**. ¿Cuántos m² de tejas se necesitan para cubrir su parte curva?' }
+                ],
+                AT: [
+                    { r: 3, h: 4, u: 'cm', title: 'Pintar un cono de madera', text: 'Vamos a pintar todo un cono de madera (también su base) de **radio 3 cm** y **altura 4 cm**. ¿Qué área pintaremos?' },
+                    { r: 5, h: 12, u: 'cm', title: 'El cono macizo', text: 'Un cono macizo tiene **radio 5 cm** y **altura 12 cm**. Calcula su área total.' }
+                ],
+                V: [
+                    { r: 3, h: 4, u: 'cm', title: 'El barquillo de helado', text: 'Un barquillo tiene forma de cono con **radio 3 cm** y **altura 4 cm**. ¿Cuánto helado le cabe por dentro?' },
+                    { r: 6, h: 8, u: 'cm', title: 'El embudo', text: 'Un embudo con forma de cono tiene **radio 6 cm** y **altura 8 cm**. ¿Cuál es su volumen?' }
+                ]
+            },
+            esfera: {
+                A: [
+                    { r: 3, u: 'cm', title: 'La pelota pequeña', text: 'Una pelota tiene forma de esfera de **radio 3 cm**. ¿Cuál es el área de su superficie?' },
+                    { r: 5, u: 'cm', title: 'La pelota de plástico', text: 'Una pelota de plástico tiene **radio 5 cm**. ¿Cuánto plástico forma su superficie?' }
+                ],
+                V: [
+                    { r: 3, u: 'cm', title: 'La bola de helado', text: 'Una bola de helado tiene forma de esfera de **radio 3 cm**. ¿Cuál es su volumen?' },
+                    { r: 6, u: 'cm', title: 'El globo', text: 'Un globo inflado tiene forma de esfera de **radio 6 cm**. ¿Cuánto aire contiene (volumen)?' }
+                ]
+            }
+        };
+
+        const MAGNITUDES = {
+            cilindro: [{ key: 'AL', name: 'Área lateral' }, { key: 'AT', name: 'Área total' }, { key: 'V', name: 'Volumen' }],
+            cono: [{ key: 'AL', name: 'Área lateral' }, { key: 'AT', name: 'Área total' }, { key: 'V', name: 'Volumen' }],
+            esfera: [{ key: 'A', name: 'Área (superficie esférica)' }, { key: 'V', name: 'Volumen' }]
+        };
+
+        function approxStep(sym, coef, u, p, speech) {
+            const val = coef * PI_A;
+            return {
+                badge: 'Valor aproximado (π ≈ 3,14)',
+                latex: `${sym} \\approx ${texNum(coef)}\\,(3{,}14) = \\boxed{${texNum(val)}${uTex(u, p)}}`,
+                hl: [], final: true,
+                speech
+            };
+        }
+
+        function buildExample(type, mag, d) {
+            const { r, h, u } = d;
+            const datos = type === 'esfera'
+                ? { badge: 'Anotamos los datos', latex: `r = ${r}\\text{ ${u}}`, hl: ['radio'], speech: `Primero anotamos el dato: el radio mide ${r} ${u}. ¡Míralo brillar en la esfera!` }
+                : { badge: 'Anotamos los datos', latex: `r = ${r}\\text{ ${u}} \\qquad h = ${h}\\text{ ${u}}`, hl: ['radio', 'altura'], speech: `Primero anotamos los datos: el radio de la base mide ${r} ${u} y la altura mide ${h} ${u}. ¡Míralos brillar en el ${type}!` };
+            let steps = [], coef = 0, p = 2;
+
+            if (type === 'cilindro' && mag === 'AL') {
+                coef = 2 * r * h;
+                steps = [datos,
+                    { badge: 'Escribimos la fórmula', latex: 'A_L = 2\\pi r\\,h', hl: ['lateral'], speech: 'El área lateral es la parte curva. Si la desenrollas, ¡es un rectángulo! Su base es el contorno del círculo (2πr) y su altura es h.' },
+                    { badge: 'Reemplazamos los datos', latex: `A_L = 2\\pi\\,(${r})\\,(${h})`, hl: ['radio', 'altura'], speech: `Cambiamos cada letra por su valor: r = ${r} y h = ${h}.` },
+                    { badge: 'Multiplicamos', latex: `A_L = ${piTex(coef)}${uTex(u, 2)}`, hl: ['lateral'], speech: `Multiplicamos los números: 2 × ${r} × ${h} = ${fmtNum(coef)}. El π lo dejamos como letra: ese es el resultado exacto.` },
+                    approxStep('A_L', coef, u, 2, `Con π ≈ 3,14: ${fmtNum(coef)} × 3,14 = ${fmtNum(coef * PI_A)}. ¡El área lateral mide unos ${fmtNum(coef * PI_A)} ${uTxt(u, 2)}! 🎉`)
+                ];
+            } else if (type === 'cilindro' && mag === 'AT') {
+                const AL = 2 * r * h, AB = r * r; coef = AL + 2 * AB;
+                steps = [datos,
+                    { badge: 'Escribimos la fórmula', latex: 'A_T = A_L + 2\\,A_B', hl: ['lateral', 'bases'], speech: 'El área total es TODO el forro: la parte curva (área lateral) más las dos tapas circulares (las bases).' },
+                    { badge: 'Calculamos el área lateral', latex: `A_L = 2\\pi\\,(${r})\\,(${h}) = ${piTex(AL)}`, hl: ['lateral'], speech: `Área lateral: 2 × ${r} × ${h} = ${AL}, o sea ${AL}π.` },
+                    { badge: 'Calculamos las dos bases', latex: `A_B = \\pi\\,(${r})^2 = ${piTex(AB)} \\;\\Rightarrow\\; 2A_B = ${piTex(2 * AB)}`, hl: ['bases'], speech: `Cada base es un círculo: π · ${r}² = ${AB}π. Como son dos bases: 2 × ${AB}π = ${2 * AB}π.` },
+                    { badge: 'Sumamos todo', latex: `A_T = ${piTex(AL)} + ${piTex(2 * AB)} = ${piTex(coef)}${uTex(u, 2)}`, hl: ['lateral', 'bases'], speech: `Sumamos: ${AL}π + ${2 * AB}π = ${coef}π. ¡Comprueba con la fórmula corta 2πr(h + r) = 2π · ${r} · ${h + r} = ${coef}π!` },
+                    approxStep('A_T', coef, u, 2, `Con π ≈ 3,14: ${fmtNum(coef)} × 3,14 = ${fmtNum(coef * PI_A)}. ¡Necesitamos unos ${fmtNum(coef * PI_A)} ${uTxt(u, 2)}! 🎉`)
+                ];
+            } else if (type === 'cilindro' && mag === 'V') {
+                coef = r * r * h; p = 3;
+                steps = [datos,
+                    { badge: 'Escribimos la fórmula', latex: 'V = \\pi r^2 h', hl: ['volumen'], speech: 'El volumen es el espacio de adentro: el área de la base (πr²) multiplicada por la altura h. ¡Como apilar círculos!' },
+                    { badge: 'Reemplazamos los datos', latex: `V = \\pi\\,(${r})^2\\,(${h}) = \\pi \\cdot ${r * r} \\cdot ${h}`, hl: ['radio', 'altura'], speech: `Ojo: primero elevamos el radio al cuadrado: ${r}² = ${r * r}. Luego multiplicamos por la altura.` },
+                    { badge: 'Multiplicamos', latex: `V = ${piTex(coef)}${uTex(u, 3)}`, hl: ['volumen'], speech: `${r * r} × ${h} = ${fmtNum(coef)}. El volumen exacto es ${fmtNum(coef)}π ${uTxt(u, 3)} (unidades cúbicas).` },
+                    approxStep('V', coef, u, 3, `Con π ≈ 3,14: ${fmtNum(coef)} × 3,14 = ${fmtNum(coef * PI_A)}. ¡Caben unos ${fmtNum(coef * PI_A)} ${uTxt(u, 3)}! 🎉`)
+                ];
+            } else if (type === 'cono') {
+                const g2 = r * r + h * h; const g = Math.round(Math.sqrt(g2));
+                if (g * g !== g2) throw new Error('La generatriz del ejemplo debe ser exacta');
+                const gStep = { badge: 'Hallamos la generatriz (Pitágoras)', latex: `g = \\sqrt{r^2 + h^2} = \\sqrt{${r}^2 + ${h}^2} = \\sqrt{${r * r} + ${h * h}} = \\sqrt{${g2}} = ${g}\\text{ ${u}}`, hl: ['generatriz', 'radio', 'altura'], speech: `El radio, la altura y la generatriz forman un triángulo rectángulo. Por Pitágoras: ${r * r} + ${h * h} = ${g2} y la raíz de ${g2} es ${g}. ¡g = ${g} ${u}!` };
+                if (mag === 'AL') {
+                    coef = r * g;
+                    steps = [datos, gStep,
+                        { badge: 'Escribimos la fórmula', latex: 'A_L = \\pi\\, r\\, g', hl: ['lateral'], speech: 'Si desenrollas la parte curva del cono obtienes un sector circular (como una tajada de pizza grande). Su área es π · r · g.' },
+                        { badge: 'Reemplazamos y multiplicamos', latex: `A_L = \\pi\\,(${r})\\,(${g}) = ${piTex(coef)}${uTex(u, 2)}`, hl: ['radio', 'generatriz'], speech: `${r} × ${g} = ${coef}. El área lateral exacta es ${coef}π ${uTxt(u, 2)}.` },
+                        approxStep('A_L', coef, u, 2, `Con π ≈ 3,14: ${fmtNum(coef)} × 3,14 = ${fmtNum(coef * PI_A)}. ¡Son unos ${fmtNum(coef * PI_A)} ${uTxt(u, 2)}! 🎉`)
+                    ];
+                } else if (mag === 'AT') {
+                    const AL = r * g, AB = r * r; coef = AL + AB;
+                    steps = [datos, gStep,
+                        { badge: 'Escribimos la fórmula', latex: 'A_T = A_L + A_B', hl: ['lateral', 'base'], speech: 'El cono tiene UNA sola base. El área total es la parte curva más ese círculo de abajo.' },
+                        { badge: 'Calculamos el área lateral', latex: `A_L = \\pi\\,(${r})\\,(${g}) = ${piTex(AL)}`, hl: ['lateral'], speech: `Área lateral: π · ${r} · ${g} = ${AL}π.` },
+                        { badge: 'Calculamos la base', latex: `A_B = \\pi\\,(${r})^2 = ${piTex(AB)}`, hl: ['base'], speech: `La base es un círculo: π · ${r}² = ${AB}π.` },
+                        { badge: 'Sumamos todo', latex: `A_T = ${piTex(AL)} + ${piTex(AB)} = ${piTex(coef)}${uTex(u, 2)}`, hl: ['lateral', 'base'], speech: `${AL}π + ${AB}π = ${coef}π. ¡Comprueba con la fórmula corta πr(g + r) = π · ${r} · ${g + r} = ${coef}π!` },
+                        approxStep('A_T', coef, u, 2, `Con π ≈ 3,14: ${fmtNum(coef)} × 3,14 = ${fmtNum(coef * PI_A)}. ¡Pintaremos unos ${fmtNum(coef * PI_A)} ${uTxt(u, 2)}! 🎉`)
+                    ];
+                } else {
+                    const n = r * r * h; if (n % 3 !== 0) throw new Error('Volumen del ejemplo debe ser entero·π');
+                    coef = n / 3; p = 3;
+                    steps = [datos,
+                        { badge: 'Escribimos la fórmula', latex: 'V = \\dfrac{\\pi r^2 h}{3}', hl: ['volumen'], speech: '¡Dato curioso! El cono cabe exactamente 3 veces en un cilindro de igual base y altura. Por eso dividimos entre 3. (¡Aquí no necesitamos la generatriz!)' },
+                        { badge: 'Reemplazamos los datos', latex: `V = \\dfrac{\\pi\\,(${r})^2\\,(${h})}{3} = \\dfrac{${n}\\pi}{3}`, hl: ['radio', 'altura'], speech: `${r}² = ${r * r} y ${r * r} × ${h} = ${n}. Nos queda ${n}π entre 3.` },
+                        { badge: 'Dividimos entre 3', latex: `V = ${piTex(coef)}${uTex(u, 3)}`, hl: ['volumen'], speech: `${n} ÷ 3 = ${coef}. El volumen exacto es ${coef}π ${uTxt(u, 3)}.` },
+                        approxStep('V', coef, u, 3, `Con π ≈ 3,14: ${fmtNum(coef)} × 3,14 = ${fmtNum(coef * PI_A)}. ¡Le caben unos ${fmtNum(coef * PI_A)} ${uTxt(u, 3)}! 🎉`)
+                    ];
+                }
+            } else if (type === 'esfera' && mag === 'A') {
+                coef = 4 * r * r;
+                steps = [datos,
+                    { badge: 'Escribimos la fórmula', latex: 'A = 4\\pi r^2', hl: ['superficie', 'circulo'], speech: '¡La superficie de la esfera equivale a 4 círculos máximos! Por eso es 4 · πr². La esfera no tiene bases: su área lateral y su área total son la misma.' },
+                    { badge: 'Reemplazamos los datos', latex: `A = 4\\pi\\,(${r})^2 = 4\\pi \\cdot ${r * r}`, hl: ['radio'], speech: `Primero el cuadrado: ${r}² = ${r * r}.` },
+                    { badge: 'Multiplicamos', latex: `A = ${piTex(coef)}${uTex(u, 2)}`, hl: ['superficie'], speech: `4 × ${r * r} = ${coef}. El área exacta es ${coef}π ${uTxt(u, 2)}.` },
+                    approxStep('A', coef, u, 2, `Con π ≈ 3,14: ${fmtNum(coef)} × 3,14 = ${fmtNum(coef * PI_A)}. ¡La superficie mide unos ${fmtNum(coef * PI_A)} ${uTxt(u, 2)}! 🎉`)
+                ];
+            } else if (type === 'esfera' && mag === 'V') {
+                const n = 4 * r * r * r; if (n % 3 !== 0) throw new Error('Volumen de esfera debe ser entero·π');
+                coef = n / 3; p = 3;
+                const curioso = r === 3 ? ' ¡Curioso! Con r = 3 el área y el volumen dan el mismo número (36π), pero el área se mide en cm² y el volumen en cm³.' : '';
+                steps = [datos,
+                    { badge: 'Escribimos la fórmula', latex: 'V = \\dfrac{4}{3}\\pi r^3', hl: ['volumen'], speech: 'El volumen de la esfera es cuatro tercios de π por el radio al cubo (r · r · r).' },
+                    { badge: 'Reemplazamos los datos', latex: `V = \\dfrac{4}{3}\\pi\\,(${r})^3 = \\dfrac{4 \\cdot ${r * r * r}}{3}\\pi = \\dfrac{${n}}{3}\\pi`, hl: ['radio'], speech: `${r}³ = ${r} × ${r} × ${r} = ${r * r * r}. Luego 4 × ${r * r * r} = ${n}.` },
+                    { badge: 'Dividimos entre 3', latex: `V = ${piTex(coef)}${uTex(u, 3)}`, hl: ['volumen'], speech: `${n} ÷ 3 = ${coef}. El volumen exacto es ${coef}π ${uTxt(u, 3)}.${curioso}` },
+                    approxStep('V', coef, u, 3, `Con π ≈ 3,14: ${fmtNum(coef)} × 3,14 = ${fmtNum(coef * PI_A)}. ¡Son unos ${fmtNum(coef * PI_A)} ${uTxt(u, 3)}! 🎉`)
+                ];
+            }
+            steps = steps.map((s, i) => ({ ...s, badge: `${i + 1}. ${s.badge}` }));
+            return { ...d, type, mag, coef, p, approx: coef * PI_A, steps };
+        }
+
+        const EXAMPLES = {};
+        Object.keys(EXAMPLE_DATA).forEach(type => {
+            EXAMPLES[type] = {};
+            Object.keys(EXAMPLE_DATA[type]).forEach(mag => {
+                EXAMPLES[type][mag] = EXAMPLE_DATA[type][mag].map(d => buildExample(type, mag, d));
+            });
+        });
+        // @@MATH-END
+
+        // =========================================================================
+        // 6. PALETA NEÓN, SÓLIDOS Y ELEMENTOS
+        // =========================================================================
+        const SOLIDS = {
+            cilindro: { name: 'Cilindro', emoji: '🥫', hex: '#00c8ff', figHex: '#ff3df2', grad: 'from-[#00f5ff] to-[#3a5bff]', ring: 'ring-[#00f5ff]', text: 'text-[#5ff6ff]', figure: 'Rectángulo', figDesc: 'Un rectángulo gira alrededor de uno de sus lados.', demo: { r: 3, h: 5 } },
+            cono: { name: 'Cono', emoji: '🍦', hex: '#ff4fa3', figHex: '#00f0ff', grad: 'from-[#ff2e93] to-[#ff9a00]', ring: 'ring-[#ff4fa3]', text: 'text-[#ff8ac6]', figure: 'Triángulo rectángulo', figDesc: 'Un triángulo rectángulo gira alrededor de uno de sus catetos.', demo: { r: 3, h: 4 } },
+            esfera: { name: 'Esfera', emoji: '⚽', hex: '#1fe6a0', figHex: '#ff3df2', grad: 'from-[#c6ff00] to-[#00d68f]', ring: 'ring-[#b6ff00]', text: 'text-[#c6ff4d]', figure: 'Semicírculo', figDesc: 'Un semicírculo gira alrededor de su diámetro.', demo: { r: 3, h: 6 } }
+        };
+        const SOLID_KEYS = ['cilindro', 'cono', 'esfera'];
+
+        const EL_COLORS = {
+            eje: '#ffe600', radio: '#ff2e63', altura: '#39ff14', generatriz: '#ff8a00',
+            bases: '#b14bff', base: '#b14bff', vertice: '#ffffff', centro: '#ffe600',
+            diametro: '#2f7bff', circulo: '#ff3df2'
+        };
+
+        const SOLID_ELEMENTS = {
+            cilindro: [
+                { id: 'eje', name: 'Eje', desc: 'Recta fija alrededor de la cual gira el rectángulo. Pasa por los centros de las dos bases.' },
+                { id: 'radio', name: 'Radio (r)', desc: 'Distancia del centro de una base a su borde. Es el ancho del rectángulo que giró.' },
+                { id: 'altura', name: 'Altura (h)', desc: 'Distancia entre las dos bases. En el cilindro mide lo mismo que la generatriz.' },
+                { id: 'generatriz', name: 'Generatriz (g)', desc: 'Lado del rectángulo que, al girar, «dibuja» la superficie lateral. En el cilindro g = h.' },
+                { id: 'bases', name: 'Bases', desc: 'Los dos círculos iguales y paralelos: uno arriba y otro abajo.' },
+                { id: 'lateral', name: 'Superficie lateral', desc: 'La parte curva que envuelve al cilindro, como la etiqueta de una lata.' }
+            ],
+            cono: [
+                { id: 'eje', name: 'Eje', desc: 'Recta fija alrededor de la cual gira el triángulo. Pasa por el vértice y por el centro de la base.' },
+                { id: 'radio', name: 'Radio (r)', desc: 'Distancia del centro de la base a su borde. Es el cateto horizontal del triángulo.' },
+                { id: 'altura', name: 'Altura (h)', desc: 'Distancia del vértice al centro de la base. Es el cateto que está sobre el eje.' },
+                { id: 'generatriz', name: 'Generatriz (g)', desc: 'Segmento que va del vértice al borde de la base. Es la hipotenusa del triángulo: g² = r² + h².' },
+                { id: 'vertice', name: 'Vértice', desc: 'El punto de la punta del cono. Allí se juntan todas las generatrices.' },
+                { id: 'base', name: 'Base', desc: 'El círculo de abajo. ¡El cono tiene una sola base!' },
+                { id: 'lateral', name: 'Superficie lateral', desc: 'La parte curva del cono, como un gorro de fiesta.' }
+            ],
+            esfera: [
+                { id: 'centro', name: 'Centro (O)', desc: 'Punto interior que está a la misma distancia de todos los puntos de la superficie.' },
+                { id: 'radio', name: 'Radio (r)', desc: 'Segmento que va del centro a cualquier punto de la superficie.' },
+                { id: 'diametro', name: 'Diámetro (d)', desc: 'Segmento que une dos puntos de la superficie pasando por el centro. Mide el doble del radio: d = 2r.' },
+                { id: 'circulo', name: 'Círculo máximo', desc: 'El círculo más grande que se puede trazar en la esfera; su centro es el centro de la esfera (como la línea del ecuador).' },
+                { id: 'superficie', name: 'Superficie esférica', desc: 'La «cáscara» de la esfera: todos los puntos que están a la distancia r del centro.' }
+            ]
+        };
+        const elColor = (type, id) => EL_COLORS[id] || SOLIDS[type].hex;
+
+        // =========================================================================
+        // 7. MOTOR 3D (THREE.JS r128): REVOLUCIÓN + ELEMENTOS + RESALTADO
+        // =========================================================================
+        const UP = () => new THREE.Vector3(0, 1, 0);
+        const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+
+        function displayDims(type, r, h) {
+            if (type === 'esfera') { const s = 1.45 / r; return { R: r * s, H: 2 * r * s }; }
+            const s = Math.min(2.7 / h, 1.45 / r);
+            return { R: r * s, H: h * s };
+        }
+        function neonMat(hex, extra = {}) {
+            return new THREE.MeshStandardMaterial(Object.assign({ color: hex, emissive: hex, emissiveIntensity: 0.35, roughness: 0.35, metalness: 0.15, transparent: true, opacity: 0.95 }, extra));
+        }
+        const HIT_MAT = () => new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
+        function segMesh(a, b, rad, mat) {
+            const dir = new THREE.Vector3().subVectors(b, a);
+            const m = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, Math.max(dir.length(), 0.0001), 14), mat);
+            m.position.copy(a).add(b).multiplyScalar(0.5);
+            m.quaternion.setFromUnitVectors(UP(), dir.clone().normalize());
+            return m;
+        }
+        function dotMesh(p, rad, mat) { const m = new THREE.Mesh(new THREE.SphereGeometry(rad, 20, 14), mat); m.position.copy(p); return m; }
+        function disposeGroup(g) {
+            while (g.children.length) {
+                const c = g.children.pop();
+                c.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+            }
+        }
+
+        // Construye un sólido con sus elementos resaltables
+        function buildElements(st, type, R, H) {
+            const C = st.content, col = SOLIDS[type].hex;
+            const T = 0.03, HB = 0.14;
+            const addItem = (ids, meshes, mats, o = {}) => st.items.push(Object.assign({ ids, meshes, mats, baseOp: 0.95, onOp: 1, dimOp: 0.25, grow: 0 }, o));
+            const addSeg = (id, a, b, rad = T, extra = {}) => {
+                const mat = neonMat(elColor(type, id)); const m = segMesh(a, b, rad, mat); C.add(m);
+                const hb = segMesh(a, b, HB, HIT_MAT()); hb.userData.pick = id; C.add(hb); st.hit.push(hb);
+                return { m, mat };
+            };
+            const label = (id, p) => st.labels.push({ id, pos: p });
+
+            if (type === 'cilindro' || type === 'cono') {
+                const isCyl = type === 'cilindro';
+                const bodyMat = neonMat(col, { opacity: 0.42, side: THREE.DoubleSide, depthWrite: false, emissiveIntensity: 0.22 });
+                const body = new THREE.Mesh(isCyl ? new THREE.CylinderGeometry(R, R, H, 72, 1, true) : new THREE.ConeGeometry(R, H, 72, 1, true), bodyMat);
+                body.userData.pick = 'lateral'; C.add(body); st.hit.push(body);
+                addItem(['lateral', 'volumen'], [body], [bodyMat], { baseOp: 0.4, onOp: 0.82, dimOp: 0.16 });
+                // bordes brillantes
+                const rimMat = neonMat(col, { emissiveIntensity: 0.9 });
+                const rims = isCyl ? [H / 2, -H / 2] : [-H / 2];
+                rims.forEach(y => { const t = new THREE.Mesh(new THREE.TorusGeometry(R, 0.018, 8, 96), rimMat); t.rotation.x = Math.PI / 2; t.position.y = y; C.add(t); });
+                // bases
+                const bId = isCyl ? 'bases' : 'base';
+                const bMat = neonMat(elColor(type, bId), { opacity: 0.45, side: THREE.DoubleSide, depthWrite: false });
+                const disks = rims.map(y => { const d = new THREE.Mesh(new THREE.CircleGeometry(R, 72), bMat); d.rotation.x = -Math.PI / 2; d.position.y = y + (y > 0 ? 0.003 : -0.003); d.userData.pick = bId; C.add(d); st.hit.push(d); return d; });
+                addItem([bId], disks, [bMat], { baseOp: 0.42, onOp: 0.9, dimOp: 0.12 });
+                label(bId, V3(-R * 0.35, -H / 2, R * 0.75));
+                // eje
+                const e = addSeg('eje', V3(0, -H / 2 - 0.5, 0), V3(0, H / 2 + 0.55, 0), 0.022);
+                addItem(['eje'], [e.m], [e.mat], { grow: 1 }); label('eje', V3(0, H / 2 + 0.72, 0));
+                // radio (en la base superior del cilindro / base del cono)
+                const ry = isCyl ? H / 2 + 0.02 : -H / 2 + 0.02;
+                const rEnd = V3(R * 0.5, ry, R * 0.866);
+                const ra = addSeg('radio', V3(0, ry, 0), rEnd);
+                const rd = dotMesh(rEnd, 0.05, ra.mat); C.add(rd);
+                addItem(['radio'], [ra.m], [ra.mat], { grow: 1 }); label('radio', V3(R * 0.28, ry + 0.22, R * 0.48));
+                // altura (línea de medida al costado)
+                const ax = -(R + 0.38);
+                const al = addSeg('altura', V3(ax, -H / 2, 0), V3(ax, H / 2, 0));
+                const tk1 = segMesh(V3(ax - 0.12, -H / 2, 0), V3(ax + 0.12, -H / 2, 0), 0.02, al.mat); C.add(tk1);
+                const tk2 = segMesh(V3(ax - 0.12, H / 2, 0), V3(ax + 0.12, H / 2, 0), 0.02, al.mat); C.add(tk2);
+                const guideMat = neonMat(elColor(type, 'altura'), { opacity: 0.5 });
+                if (!isCyl) { C.add(segMesh(V3(ax, H / 2, 0), V3(0, H / 2, 0), 0.008, guideMat)); }
+                C.add(segMesh(V3(ax, -H / 2, 0), V3(-R, -H / 2, 0), 0.008, guideMat));
+                if (isCyl) C.add(segMesh(V3(ax, H / 2, 0), V3(-R, H / 2, 0), 0.008, guideMat));
+                addItem(['altura'], [al.m], [al.mat, guideMat], { grow: 1 }); label('altura', V3(ax - 0.05, 0, 0));
+                // generatriz
+                const gp = (y, k = 1.012) => V3(R * k * 0.866, y, R * k * 0.5);
+                const gen = isCyl ? addSeg('generatriz', gp(-H / 2), gp(H / 2)) : addSeg('generatriz', V3(0, H / 2, 0), gp(-H / 2));
+                addItem(['generatriz'], [gen.m], [gen.mat], { grow: 1 });
+                label('generatriz', isCyl ? gp(H * 0.12, 1.1) : V3(R * 0.55 * 0.866, H * 0.05, R * 0.55 * 0.5));
+                label('lateral', isCyl ? V3(-R * 0.25, -H * 0.22, R * 0.97) : V3(-R * 0.35, -H * 0.3, R * 0.6));
+                if (!isCyl) {
+                    const vm = neonMat(elColor(type, 'vertice'), { emissiveIntensity: 0.8 });
+                    const v = dotMesh(V3(0, H / 2, 0), 0.085, vm); C.add(v);
+                    const hb = dotMesh(V3(0, H / 2, 0), 0.2, HIT_MAT()); hb.userData.pick = 'vertice'; C.add(hb); st.hit.push(hb);
+                    addItem(['vertice'], [v], [vm], { grow: 2 }); label('vertice', V3(0.28, H / 2 + 0.25, 0));
+                }
+            } else {
+                const bodyMat = neonMat(col, { opacity: 0.36, side: THREE.DoubleSide, depthWrite: false, emissiveIntensity: 0.22 });
+                const body = new THREE.Mesh(new THREE.SphereGeometry(R, 72, 48), bodyMat);
+                body.userData.pick = 'superficie'; C.add(body); st.hit.push(body);
+                addItem(['superficie', 'volumen'], [body], [bodyMat], { baseOp: 0.34, onOp: 0.8, dimOp: 0.14 });
+                // centro
+                const cm = neonMat(elColor(type, 'centro'), { emissiveIntensity: 0.9 });
+                const c = dotMesh(V3(0, 0, 0), 0.08, cm); C.add(c);
+                const chb = dotMesh(V3(0, 0, 0), 0.2, HIT_MAT()); chb.userData.pick = 'centro'; C.add(chb); st.hit.push(chb);
+                addItem(['centro'], [c], [cm], { grow: 2 }); label('centro', V3(0.05, -0.28, 0.1));
+                // radio
+                const rdir = V3(0.42, 0.72, 0.55).normalize();
+                const ra = addSeg('radio', V3(0, 0, 0), rdir.clone().multiplyScalar(R));
+                C.add(dotMesh(rdir.clone().multiplyScalar(R), 0.05, ra.mat));
+                addItem(['radio'], [ra.m], [ra.mat], { grow: 1 }); label('radio', rdir.clone().multiplyScalar(R * 0.55).add(V3(0.22, 0.05, 0)));
+                // diámetro (en el plano del ecuador)
+                const dd = V3(-0.8, 0, 0.6).normalize();
+                const di = addSeg('diametro', dd.clone().multiplyScalar(-R), dd.clone().multiplyScalar(R));
+                addItem(['diametro'], [di.m], [di.mat], { grow: 1 }); label('diametro', dd.clone().multiplyScalar(R * 0.62).add(V3(0, -0.2, 0)));
+                // círculo máximo
+                const tm = neonMat(elColor(type, 'circulo'), { emissiveIntensity: 0.6 });
+                const tor = new THREE.Mesh(new THREE.TorusGeometry(R * 1.004, 0.028, 12, 160), tm); tor.rotation.x = Math.PI / 2; C.add(tor);
+                const thb = new THREE.Mesh(new THREE.TorusGeometry(R, 0.12, 8, 80), HIT_MAT()); thb.rotation.x = Math.PI / 2; thb.userData.pick = 'circulo'; C.add(thb); st.hit.push(thb);
+                const discMat = neonMat(elColor(type, 'circulo'), { opacity: 0.1, side: THREE.DoubleSide, depthWrite: false });
+                const disc = new THREE.Mesh(new THREE.CircleGeometry(R, 96), discMat); disc.rotation.x = -Math.PI / 2; C.add(disc);
+                addItem(['circulo'], [tor, disc], [tm, discMat], { baseOp: 0.95, onOp: 1, dimOp: 0.25 });
+                discMat.userData = { fixedOp: true };
+                label('circulo', V3(R * 0.95, -0.05, R * 0.3));
+                label('superficie', V3(-R * 0.45, R * 0.78, R * 0.3));
+            }
+        }
+
+        // Construye la animación de revolución: figura plana + superficie barrida
+        function buildRevolution(st, type, R, H, sweepDeg) {
+            const C = st.content, col = SOLIDS[type].hex, fcol = SOLIDS[type].figHex;
+            const a = (Math.max(0, Math.min(360, sweepDeg)) * Math.PI) / 180;
+            const isS = type === 'esfera';
+            const top = isS ? R : H / 2, bot = isS ? -R : -H / 2;
+            // eje
+            const em = neonMat(EL_COLORS.eje, { emissiveIntensity: 0.9 });
+            C.add(segMesh(V3(0, bot - 0.6, 0), V3(0, top + 0.6, 0), 0.025, em));
+            C.add(dotMesh(V3(0, top + 0.6, 0), 0.05, em));
+            st.labels.push({ id: 'eje', pos: V3(0, top + 0.8, 0) });
+            // superficie barrida
+            if (a > 0.004) {
+                const sm = neonMat(col, { opacity: a >= 2 * Math.PI - 0.001 ? 0.62 : 0.5, side: THREE.DoubleSide, depthWrite: false, emissiveIntensity: 0.3 });
+                let surf;
+                if (type === 'cilindro') surf = new THREE.CylinderGeometry(R, R, H, 72, 1, true, Math.PI / 2, a);
+                else if (type === 'cono') surf = new THREE.ConeGeometry(R, H, 72, 1, true, Math.PI / 2, a);
+                else surf = new THREE.SphereGeometry(R, 72, 48, Math.PI, a);
+                C.add(new THREE.Mesh(surf, sm));
+                const capYs = type === 'cilindro' ? [H / 2, -H / 2] : type === 'cono' ? [-H / 2] : [];
+                capYs.forEach(y => {
+                    const cap = new THREE.Mesh(new THREE.CircleGeometry(R, 72, 0, a), neonMat(EL_COLORS.bases, { opacity: 0.42, side: THREE.DoubleSide, depthWrite: false }));
+                    cap.rotation.x = -Math.PI / 2; cap.position.y = y; C.add(cap);
+                });
+                // estela del giro
+                const trailY = type === 'cilindro' ? H / 2 : type === 'cono' ? -H / 2 : 0;
+                const tr = new THREE.Mesh(new THREE.TorusGeometry(R, 0.022, 8, 120, a), neonMat(fcol, { emissiveIntensity: 1 }));
+                tr.rotation.x = -Math.PI / 2; tr.position.y = trailY; C.add(tr);
+            }
+            // figura plana
+            const shape = new THREE.Shape();
+            if (type === 'cilindro') { shape.moveTo(0, -H / 2); shape.lineTo(R, -H / 2); shape.lineTo(R, H / 2); shape.lineTo(0, H / 2); shape.lineTo(0, -H / 2); }
+            else if (type === 'cono') { shape.moveTo(0, -H / 2); shape.lineTo(R, -H / 2); shape.lineTo(0, H / 2); shape.lineTo(0, -H / 2); }
+            else { shape.moveTo(0, -R); shape.absarc(0, 0, R, -Math.PI / 2, Math.PI / 2, false); shape.lineTo(0, -R); }
+            const mkFig = (op, outline) => {
+                const g = new THREE.Group();
+                g.add(new THREE.Mesh(new THREE.ShapeGeometry(shape, 48), neonMat(fcol, { opacity: op, side: THREE.DoubleSide, depthWrite: false, emissiveIntensity: 0.55 })));
+                if (outline) {
+                    const om = neonMat('#ffffff', { emissive: fcol, emissiveIntensity: 1 });
+                    const pts = type === 'cilindro' ? [[0, -H / 2], [R, -H / 2], [R, H / 2], [0, H / 2]] : type === 'cono' ? [[0, -H / 2], [R, -H / 2], [0, H / 2]] : null;
+                    if (pts) pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length]; if (p[0] === 0 && q[0] === 0) return; g.add(segMesh(V3(p[0], p[1], 0), V3(q[0], q[1], 0), 0.03, om)); });
+                    else { const arc = new THREE.Mesh(new THREE.TorusGeometry(R, 0.03, 8, 64, Math.PI), om); arc.rotation.z = -Math.PI / 2; g.add(arc); }
+                }
+                return g;
+            };
+            if (a > 0.05) C.add(mkFig(0.16, false));
+            const fig = mkFig(0.82, true); fig.rotation.y = a; C.add(fig);
+            const cx = type === 'cilindro' ? R / 2 : type === 'cono' ? R / 3 : 0.42 * R;
+            const cy = type === 'cono' ? -H / 6 : 0;
+            st.labels.push({ id: 'figura', pos: V3(cx * Math.cos(a), cy, -cx * Math.sin(a)) });
+        }
+
+        const Solid3D = ({ type, r, h, mode = 'elements', sweep = 360, active = [], elements = [], showLabels = true, onHover, onPick, className = '', autoRotateDefault = true }) => {
+            const mountRef = useRef(null);
+            const S = useRef({});
+            const labelRefs = useRef({});
+            const activeRef = useRef(new Set());
+            const cbRef = useRef({});
+            cbRef.current = { onHover, onPick };
+            const [auto, setAuto] = useState(autoRotateDefault);
+            const autoRef = useRef(autoRotateDefault);
+            useEffect(() => { autoRef.current = auto; }, [auto]);
+            const activeKey = (Array.isArray(active) ? active : [active]).filter(Boolean).join('|');
+            useEffect(() => { activeRef.current = new Set(activeKey ? activeKey.split('|') : []); }, [activeKey]);
+
+            useEffect(() => {
+                const el = mountRef.current;
+                if (!el || !window.THREE) return;
+                const w = Math.max(el.clientWidth, 1), hh = Math.max(el.clientHeight, 1);
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(28, w / hh, 0.1, 100);
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                renderer.setSize(w, hh, false);
+                renderer.domElement.style.width = '100%'; renderer.domElement.style.height = '100%'; renderer.domElement.style.display = 'block';
+                el.appendChild(renderer.domElement);
+                scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+                const key = new THREE.DirectionalLight(0xffffff, 0.85); key.position.set(4, 7, 6); scene.add(key);
+                const pm = new THREE.PointLight(0xff3df2, 0.9, 30); pm.position.set(-5, -2, 4); scene.add(pm);
+                const pc = new THREE.PointLight(0x00f0ff, 0.8, 30); pc.position.set(5, -3, -4); scene.add(pc);
+                const holder = new THREE.Group(); scene.add(holder);
+                const content = new THREE.Group(); holder.add(content);
+                // halo del piso
+                const floor = new THREE.Mesh(new THREE.RingGeometry(1.7, 2.05, 96), new THREE.MeshBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.25, side: THREE.DoubleSide }));
+                floor.rotation.x = -Math.PI / 2; floor.position.y = -1.95; scene.add(floor);
+                Object.assign(S.current, { scene, camera, renderer, holder, content, rot: { x: 0.24, y: -0.55 }, zoom: 10.2, items: [], hit: [], labels: [], drag: null });
+                const ro = new ResizeObserver(() => {
+                    const W = Math.max(el.clientWidth, 1), Hh = Math.max(el.clientHeight, 1);
+                    camera.aspect = W / Hh; camera.updateProjectionMatrix(); renderer.setSize(W, Hh, false);
+                });
+                ro.observe(el);
+                let frame; const v = new THREE.Vector3();
+                const loop = () => {
+                    frame = requestAnimationFrame(loop);
+                    const st = S.current;
+                    if (!st.drag && autoRef.current) st.rot.y += 0.0045;
+                    holder.rotation.x += (st.rot.x - holder.rotation.x) * 0.15;
+                    holder.rotation.y += (st.rot.y - holder.rotation.y) * 0.15;
+                    const asp = camera.aspect < 0.85 ? 1.25 : 1;
+                    const z = st.zoom * asp;
+                    camera.position.z += (z - camera.position.z) * 0.12; camera.position.y = camera.position.z * 0.1; camera.lookAt(0, 0, 0);
+                    floor.material.opacity = 0.18 + 0.1 * Math.sin(performance.now() / 600);
+                    const act = activeRef.current, any = act.size > 0;
+                    const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 160);
+                    st.items.forEach(it => {
+                        const on = it.ids.some(id => act.has(id));
+                        it.mats.forEach(m => {
+                            m.emissiveIntensity = on ? 0.55 + 0.45 * pulse : 0.32;
+                            if (!(m.userData && m.userData.fixedOp)) m.opacity = on ? it.onOp : (any ? it.dimOp : it.baseOp);
+                            else m.opacity = on ? 0.35 : 0.1;
+                        });
+                        if (it.grow) it.meshes.forEach(ms => {
+                            const k = on ? (it.grow === 2 ? 1.7 : 2.1) : 1;
+                            ms.scale.x += (k - ms.scale.x) * 0.2; ms.scale.z += (k - ms.scale.z) * 0.2;
+                            if (it.grow === 2) ms.scale.y += (k - ms.scale.y) * 0.2;
+                        });
+                    });
+                    holder.updateMatrixWorld();
+                    const W = el.clientWidth, Hh = el.clientHeight;
+                    st.labels.forEach(lb => {
+                        const node = labelRefs.current[lb.id]; if (!node) return;
+                        v.copy(lb.pos).applyMatrix4(holder.matrixWorld).project(camera);
+                        const x = (v.x + 1) / 2 * W, y = (1 - v.y) / 2 * Hh;
+                        node.style.transform = `translate(-50%, -50%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+                        node.style.visibility = 'visible';
+                    });
+                    renderer.render(scene, camera);
+                };
+                loop();
+                return () => { cancelAnimationFrame(frame); ro.disconnect(); disposeGroup(content); renderer.dispose(); if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement); };
+            }, []);
+
+            const sweepKey = Math.round(sweep * 2);
+            useEffect(() => {
+                const st = S.current; if (!st.content) return;
+                disposeGroup(st.content);
+                st.items = []; st.hit = []; st.labels = [];
+                Object.values(labelRefs.current).forEach(n => { if (n) n.style.visibility = 'hidden'; });
+                const { R, H } = displayDims(type, r, h);
+                if (mode === 'revolution') buildRevolution(st, type, R, H, sweep);
+                else buildElements(st, type, R, H);
+            }, [type, r, h, mode, sweepKey]);
+
+            const raycaster = useRef(new THREE.Raycaster());
+            const pickAt = (e) => {
+                const st = S.current, el = mountRef.current; if (!st.camera || !el) return null;
+                const rect = el.getBoundingClientRect();
+                const ndc = new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
+                raycaster.current.setFromCamera(ndc, st.camera);
+                const hits = raycaster.current.intersectObjects(st.hit, false);
+                if (!hits.length) return null;
+                const thin = hits.find(hh => !['lateral', 'superficie', 'bases', 'base'].includes(hh.object.userData.pick));
+                return (thin || hits[0]).object.userData.pick;
+            };
+            const lastHover = useRef(null);
+            const onDown = (e) => {
+                const st = S.current;
+                st.drag = { x: e.clientX, y: e.clientY, moved: false, id: e.pointerId };
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+            };
+            const onMove = (e) => {
+                const st = S.current;
+                if (st.drag && st.drag.id === e.pointerId) {
+                    const dx = e.clientX - st.drag.x, dy = e.clientY - st.drag.y;
+                    if (Math.abs(dx) + Math.abs(dy) > 3) st.drag.moved = true;
+                    st.rot.y += dx * 0.01; st.rot.x = Math.max(-1.2, Math.min(1.2, st.rot.x + dy * 0.008));
+                    st.drag.x = e.clientX; st.drag.y = e.clientY;
+                    return;
+                }
+                if (e.pointerType === 'mouse' && mode === 'elements' && cbRef.current.onHover) {
+                    const id = pickAt(e);
+                    if (id !== lastHover.current) { lastHover.current = id; cbRef.current.onHover(id); }
+                }
+            };
+            const onUp = (e) => {
+                const st = S.current; const d = st.drag; st.drag = null;
+                if (d && !d.moved && mode === 'elements' && cbRef.current.onPick) cbRef.current.onPick(pickAt(e));
+            };
+            const onLeave = () => { if (lastHover.current && cbRef.current.onHover) { lastHover.current = null; cbRef.current.onHover(null); } };
+            const onWheel = (e) => { const st = S.current; st.zoom = Math.max(6, Math.min(16, st.zoom + e.deltaY * 0.006)); };
+            const zoomBy = (d) => { const st = S.current; st.zoom = Math.max(6, Math.min(16, st.zoom + d)); AudioController.play('pop'); };
+            const resetView = () => { const st = S.current; if (st.holder) st.holder.rotation.y = st.holder.rotation.y % (2 * Math.PI); st.rot = { x: 0.24, y: -0.55 }; st.zoom = 10.2; AudioController.play('swoosh'); };
+
+            const actSet = new Set(activeKey ? activeKey.split('|') : []);
+            return (
+                <div className={`relative w-full h-full overflow-hidden select-none ${className}`}>
+                    <div
+                        ref={mountRef}
+                        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+                        style={{ touchAction: 'pan-y' }}
+                        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { S.current.drag = null; }}
+                        onPointerLeave={onLeave} onWheel={onWheel}
+                    />
+                    {showLabels && (
+                        <div className="absolute inset-0 pointer-events-none">
+                            {elements.map(elm => {
+                                const on = actSet.has(elm.id);
+                                const c = elm.color || elColor(type, elm.id);
+                                return (
+                                    <button
+                                        key={elm.id}
+                                        ref={n => { labelRefs.current[elm.id] = n; }}
+                                        onMouseEnter={() => cbRef.current.onHover && cbRef.current.onHover(elm.id)}
+                                        onMouseLeave={() => cbRef.current.onHover && cbRef.current.onHover(null)}
+                                        onClick={() => cbRef.current.onPick && cbRef.current.onPick(elm.id)}
+                                        style={{ visibility: 'hidden', borderColor: c, boxShadow: on ? `0 0 18px ${c}, 0 0 4px ${c}` : 'none', background: on ? c : 'rgba(10,4,34,0.78)', color: on ? '#0a0322' : '#fff', zIndex: on ? 20 : 10 }}
+                                        className={`absolute left-0 top-0 pointer-events-auto whitespace-nowrap px-2 py-0.5 rounded-full border-2 font-black text-[10px] sm:text-xs transition-colors duration-150 ${on ? 'scale-110' : ''}`}
+                                    >
+                                        <span className="inline-block w-2 h-2 rounded-full mr-1 align-middle" style={{ background: on ? '#0a0322' : c }} />{elm.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                    <div className="absolute bottom-2 right-2 flex gap-1.5 z-30">
+                        <button onClick={() => zoomBy(-1.1)} title="Acercar" className="w-8 h-8 rounded-xl bg-white/10 border border-white/30 text-white font-black backdrop-blur-md hover:bg-white/25 active:scale-90">+</button>
+                        <button onClick={() => zoomBy(1.1)} title="Alejar" className="w-8 h-8 rounded-xl bg-white/10 border border-white/30 text-white font-black backdrop-blur-md hover:bg-white/25 active:scale-90">−</button>
+                        <button onClick={() => { setAuto(a => !a); AudioController.play('pop'); }} title="Giro automático" className={`h-8 px-2 rounded-xl border text-[11px] font-black backdrop-blur-md active:scale-90 ${auto ? 'bg-[#00f0ff] text-[#0a0322] border-[#00f0ff]' : 'bg-white/10 text-white border-white/30'}`}>⟳ Auto</button>
+                        <button onClick={resetView} title="Vista inicial" className="h-8 px-2 rounded-xl bg-white/10 border border-white/30 text-white text-[11px] font-black backdrop-blur-md hover:bg-white/25 active:scale-90">🎯</button>
+                    </div>
+                    <div className="absolute bottom-2 left-2 z-30 px-2 py-1 rounded-lg bg-black/35 text-white/80 text-[10px] sm:text-[11px] font-bold pointer-events-none">
+                        <span className="hidden sm:inline">🖱️ Arrastra para girar · rueda para zoom</span><span className="sm:hidden">👆 Desliza a los lados para girar</span>
+                    </div>
+                </div>
+            );
+        };
+
+        // =========================================================================
+        // 8. PIEZAS DE INTERFAZ (FONDO, CONFETI, BOTONES, ROBOT CON GLOBO)
+        // =========================================================================
+        const FloatingBackground = memo(() => {
+            const symbols = ['π', 'r²', '2πrh', 'πrg', '4πr²', 'g² = r² + h²', 'V', '360°', 'cm³', '⅓πr²h'];
+            const colors = ['#00f0ff', '#ff3df2', '#c6ff00', '#ffe600', '#ff8a00', '#b14bff'];
+            const els = Array.from({ length: 22 }).map((_, i) => ({
+                id: i, symbol: symbols[i % symbols.length], color: colors[i % colors.length],
+                left: `${(i * 4.6 + 2) % 96}%`, dur: `${13 + (i % 7) * 2.3}s`, delay: `-${(i * 1.7) % 22}s`,
+                size: `${1 + (i % 4) * 0.45}rem`, op: 0.14 + (i % 3) * 0.05
+            }));
+            return (
+                <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+                    <div className="blob" style={{ background: '#ff00aa', top: '-10%', left: '-8%' }} />
+                    <div className="blob" style={{ background: '#00e5ff', top: '30%', right: '-12%', animationDelay: '-6s' }} />
+                    <div className="blob" style={{ background: '#7c3aed', bottom: '-15%', left: '25%', animationDelay: '-12s' }} />
+                    {els.map(el => (
+                        <div key={el.id} className="absolute font-black animate-floatUp" style={{ left: el.left, bottom: '-15%', fontSize: el.size, opacity: el.op, color: el.color, textShadow: `0 0 12px ${el.color}`, animationDuration: el.dur, animationDelay: el.delay }}>{el.symbol}</div>
+                    ))}
+                </div>
+            );
+        });
+
+        const Confetti = memo(() => {
+            const colors = ['#ffe600', '#00f0ff', '#ff3df2', '#c6ff00', '#b14bff', '#ff8a00'];
+            const pieces = Array.from({ length: 110 }).map((_, i) => ({
+                id: i, color: colors[i % colors.length], left: `${50 + (Math.random() * 20 - 10)}%`,
+                tx: `${(Math.random() - 0.5) * 900}px`, ty: `${(Math.random() - 1) * 760}px`, rot: `${Math.random() * 720}deg`, delay: `${Math.random() * 0.2}s`
+            }));
+            return (
+                <div className="fixed inset-0 pointer-events-none z-[200] overflow-hidden">
+                    {pieces.map(p => (
+                        <div key={p.id} className={`absolute w-3.5 h-3.5 sm:w-4 sm:h-4 animate-confettiExplosion ${p.id % 2 ? 'rounded-full' : 'rounded-sm'}`} style={{ backgroundColor: p.color, boxShadow: `0 0 8px ${p.color}`, '--tx': p.tx, '--ty': p.ty, '--rot': p.rot, animationDelay: p.delay, left: p.left, top: '55%' }} />
+                    ))}
+                </div>
+            );
+        });
+
+        const useConfetti = () => {
+            const [n, setN] = useState(0);
+            const fire = useCallback(() => setN(x => x + 1), []);
+            useEffect(() => { if (!n) return; const t = setTimeout(() => setN(0), 2200); return () => clearTimeout(t); }, [n]);
+            return [n ? <Confetti key={n} /> : null, fire];
+        };
+
+        const RichText = ({ text }) => (
+            <>{text.split('**').map((part, i) => i % 2 ? <strong key={i} className="text-[#ffe600]">{part}</strong> : <span key={i}>{part}</span>)}</>
+        );
+
+        const Pill = ({ active, onClick, children, grad = 'from-[#ff2e93] to-[#7c3aed]', className = '' }) => (
+            <button
+                onClick={onClick}
+                className={`shrink-0 px-3 sm:px-4 py-2 rounded-2xl font-black text-xs sm:text-sm border-2 transition-all active:scale-95 ${active ? `bg-gradient-to-r ${grad} text-white border-white/80 shadow-[0_0_18px_rgba(255,61,242,0.55)] scale-[1.03]` : 'bg-white/10 text-white/85 border-white/25 hover:bg-white/20 hover:border-white/50'} ${className}`}
+            >{children}</button>
+        );
+
+        const SolidPicker = ({ value, onChange }) => (
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {SOLID_KEYS.map(k => (
+                    <Pill key={k} active={value === k} grad={SOLIDS[k].grad} onClick={() => { AudioController.init(); AudioController.play('swoosh'); onChange(k); }}>
+                        <span className="mr-1">{SOLIDS[k].emoji}</span>{SOLIDS[k].name}
+                    </Pill>
+                ))}
+            </div>
+        );
+
+        const RobotSays = ({ text, step = 0, maxSteps = 1, highlight = false, className = '' }) => (
+            <div className={`flex items-end gap-3 ${className}`}>
+                <div className="shrink-0 pt-2"><RobotAssistant step={step} maxSteps={maxSteps} isHighlighting={highlight} /></div>
+                <div key={text} className="relative flex-1 animate-slideInRight bg-white text-slate-800 rounded-2xl rounded-bl-sm px-3 py-2 sm:px-4 sm:py-2.5 font-bold text-xs sm:text-sm leading-snug border-[3px] border-[#00f0ff] shadow-[0_0_22px_rgba(0,240,255,0.45)]">
+                    {text}
+                </div>
+            </div>
+        );
+
+        const NeonCard = ({ children, className = '' }) => (
+            <div className={`rounded-[1.6rem] bg-[#140a3a]/75 backdrop-blur-xl border-2 border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.45)] ${className}`}>{children}</div>
+        );
+
+        const Stage3D = ({ children, accent = '#00f0ff', className = '' }) => (
+            <div className={`relative rounded-[1.6rem] overflow-hidden border-2 stage-bg ${className}`} style={{ borderColor: accent, boxShadow: `0 0 28px ${accent}55, inset 0 0 60px rgba(0,0,0,0.5)` }}>
+                {children}
+            </div>
+        );
+
+        const NeonRange = ({ label, value, min, max, step = 1, onChange, c1 = '#00f0ff', c2 = '#ff3df2', unit = '' }) => {
+            const pct = ((value - min) / (max - min)) * 100;
+            return (
+                <label className="block">
+                    <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-white font-black text-sm">{label}</span>
+                        <span className="font-black text-lg tabular-nums" style={{ color: c1, textShadow: `0 0 10px ${c1}` }}>{String(value).replace('.', ',')}{unit}</span>
+                    </div>
+                    <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} className="neon-range w-full"
+                        style={{ background: `linear-gradient(90deg, ${c1} 0%, ${c2} ${pct}%, rgba(255,255,255,0.15) ${pct}%)` }} />
+                </label>
+            );
+        };
+
+        // =========================================================================
+        // 9. SECCIÓN 1: ¿QUÉ ES UN SÓLIDO DE REVOLUCIÓN?
+        // =========================================================================
+        function RevolutionSection() {
+            const [type, setType] = useState('cilindro');
+            const [angle, setAngle] = useState(0);
+            const [playing, setPlaying] = useState(true);
+            const [confetti, fire] = useConfetti();
+            const doneRef = useRef(false);
+
+            useEffect(() => { setAngle(0); setPlaying(true); doneRef.current = false; }, [type]);
+            useEffect(() => {
+                if (!playing) return;
+                let id, last = performance.now();
+                const tick = (now) => {
+                    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+                    setAngle(a => Math.min(360, a + dt * 80));
+                    id = requestAnimationFrame(tick);
+                };
+                id = requestAnimationFrame(tick);
+                return () => cancelAnimationFrame(id);
+            }, [playing]);
+            useEffect(() => {
+                if (angle >= 360 && !doneRef.current) {
+                    doneRef.current = true; setPlaying(false);
+                    AudioController.play('success'); fire();
+                }
+                if (angle < 360) doneRef.current = false;
+            }, [angle]);
+
+            const sol = SOLIDS[type];
+            const deg = Math.round(angle);
+            const togglePlay = () => {
+                AudioController.init(); AudioController.play('pop');
+                if (angle >= 360) { setAngle(0); setPlaying(true); } else setPlaying(p => !p);
+            };
+            const speech = deg >= 360
+                ? `¡Listo! El ${sol.figure.toLowerCase()} dio una vuelta completa (360°) y generó un ${sol.name.toUpperCase()}. ${sol.emoji}`
+                : deg === 0
+                    ? `Mira el ${sol.figure.toLowerCase()} pegado al eje amarillo. ¡Dale play o mueve el deslizador para hacerlo girar!`
+                    : `Vamos girando… ${deg}°. Cada punto del ${sol.figure.toLowerCase()} dibuja una circunferencia alrededor del eje.`;
+
+            return (
+                <div className="grid lg:grid-cols-[1.35fr_1fr] gap-4 lg:gap-5">
+                    {confetti}
+                    <Stage3D accent={sol.hex} className="h-[46vh] min-h-[300px] lg:h-[calc(100dvh-11rem)] lg:min-h-[480px]">
+                        <Solid3D type={type} r={sol.demo.r} h={sol.demo.h} mode="revolution" sweep={angle}
+                            elements={[{ id: 'eje', name: 'Eje de giro', color: EL_COLORS.eje }, { id: 'figura', name: sol.figure, color: sol.figHex }]} autoRotateDefault={false} />
+                        <div className="absolute top-3 left-3 z-20 px-3 py-1.5 rounded-2xl bg-black/45 backdrop-blur-md border border-white/20 font-black text-white text-sm sm:text-base">
+                            Giro: <span style={{ color: sol.figHex, textShadow: `0 0 10px ${sol.figHex}` }}>{deg}°</span> / 360°
+                        </div>
+                    </Stage3D>
+                    <div className="flex flex-col gap-4">
+                        <NeonCard className="p-4 sm:p-5">
+                            <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">¿Qué es un <span className="neon-text">sólido de revolución</span>?</h2>
+                            <p className="mt-2 text-white/85 font-semibold text-sm sm:text-base leading-relaxed">
+                                Es el cuerpo que se forma cuando una <b className="text-[#ff3df2]">figura plana</b> da una vuelta completa (<b className="text-[#ffe600]">360°</b>) alrededor de una recta fija llamada <b className="text-[#ffe600]">eje de giro</b>.
+                            </p>
+                            <div className="mt-4 text-white/70 text-xs font-black uppercase tracking-wider">Elige la figura que va a girar</div>
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                                {SOLID_KEYS.map(k => (
+                                    <button key={k} onClick={() => { AudioController.init(); AudioController.play('swoosh'); setType(k); }}
+                                        className={`rounded-2xl p-2 sm:p-3 border-2 text-center transition-all active:scale-95 ${type === k ? `bg-gradient-to-br ${SOLIDS[k].grad} border-white text-white shadow-[0_0_20px_rgba(255,255,255,0.35)]` : 'bg-white/10 border-white/20 text-white/85 hover:bg-white/20'}`}>
+                                        <FigureIcon type={k} active={type === k} />
+                                        <div className="font-black text-[11px] sm:text-sm leading-tight mt-1">{SOLIDS[k].figure}</div>
+                                        <div className="text-[10px] sm:text-xs font-bold opacity-90">→ {SOLIDS[k].name}</div>
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="mt-3 text-sm font-bold" style={{ color: sol.figHex }}>{sol.figDesc}</p>
+                        </NeonCard>
+                        <NeonCard className="p-4 sm:p-5">
+                            <NeonRange label="Ángulo de giro" value={deg} min={0} max={360} unit="°" c1="#ffe600" c2={sol.figHex}
+                                onChange={v => { setPlaying(false); setAngle(v); }} />
+                            <div className="mt-3 flex gap-2">
+                                <button onClick={togglePlay} className="flex-[2] h-12 rounded-2xl font-black text-white text-sm sm:text-base bg-gradient-to-r from-[#ff2e93] to-[#ff9a00] border-b-4 border-[#b4235f] active:border-b-0 active:translate-y-1 shadow-[0_0_20px_rgba(255,46,147,0.5)] flex items-center justify-center gap-2">
+                                    {playing ? <><Pause className="w-5 h-5" /> Pausar</> : angle >= 360 ? <><RotateCcw className="w-5 h-5" /> Girar otra vez</> : <><Play className="w-5 h-5" /> Reproducir</>}
+                                </button>
+                                <button onClick={() => { AudioController.play('pop'); setPlaying(false); setAngle(0); }} className="flex-1 h-12 rounded-2xl font-black text-white text-sm bg-white/10 border-2 border-white/30 hover:bg-white/20 active:scale-95">0°</button>
+                                <button onClick={() => { AudioController.play('pop'); setPlaying(false); setAngle(360); }} className="flex-1 h-12 rounded-2xl font-black text-[#0a0322] text-sm bg-[#c6ff00] border-b-4 border-[#7a9c00] active:border-b-0 active:translate-y-1">360°</button>
+                            </div>
+                        </NeonCard>
+                        <RobotSays text={speech} step={deg >= 360 ? 1 : 0} maxSteps={1} highlight={playing} />
+                    </div>
+                </div>
+            );
+        }
+
+        const FigureIcon = ({ type, active }) => {
+            const c = active ? '#ffffff' : SOLIDS[type].figHex;
+            return (
+                <svg viewBox="0 0 60 50" className="w-full h-8 sm:h-10">
+                    <line x1="18" y1="2" x2="18" y2="48" stroke="#ffe600" strokeWidth="2.5" strokeDasharray="4 3" />
+                    {type === 'cilindro' && <rect x="18" y="10" width="22" height="30" fill={c} fillOpacity="0.55" stroke={c} strokeWidth="2.5" />}
+                    {type === 'cono' && <polygon points="18,8 18,42 40,42" fill={c} fillOpacity="0.55" stroke={c} strokeWidth="2.5" />}
+                    {type === 'esfera' && <path d="M18 6 A19 19 0 0 1 18 44 Z" fill={c} fillOpacity="0.55" stroke={c} strokeWidth="2.5" />}
+                    <path d="M44 16 q10 9 0 18" fill="none" stroke="#ffe600" strokeWidth="2" markerEnd="" />
+                    <polygon points="41,32 46,35 45,29" fill="#ffe600" />
+                </svg>
+            );
+        };
+
+        // =========================================================================
+        // 10. SECCIÓN 2: ELEMENTOS + MINI-RETO
+        // =========================================================================
+        const shuffle = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+        function makeQuiz(n = 6) {
+            const pool = [];
+            SOLID_KEYS.forEach(t => SOLID_ELEMENTS[t].forEach(e => pool.push({ t, id: e.id })));
+            return shuffle(pool).slice(0, n).map(q => {
+                const others = shuffle(SOLID_ELEMENTS[q.t].filter(e => e.id !== q.id)).slice(0, 3).map(e => e.id);
+                return { ...q, options: shuffle([q.id, ...others]) };
+            });
+        }
+        const elName = (t, id) => (SOLID_ELEMENTS[t].find(e => e.id === id) || {}).name || id;
+
+        function ElementsSection() {
+            const [type, setType] = useState('cilindro');
+            const [mode, setMode] = useState('explore');
+            const [hovered, setHovered] = useState(null);
+            const [pinned, setPinned] = useState(null);
+            const [quiz, setQuiz] = useState(() => makeQuiz());
+            const [qi, setQi] = useState(0);
+            const [picked, setPicked] = useState(null);
+            const [score, setScore] = useState(0);
+            const [confetti, fire] = useConfetti();
+
+            const onHover = useCallback((id) => { setHovered(prev => { if (id && id !== prev) AudioController.play('hover'); return id; }); }, []);
+            const onPick = useCallback((id) => { AudioController.init(); AudioController.play('pop'); setPinned(prev => (prev === id ? null : id)); }, []);
+            useEffect(() => { setHovered(null); setPinned(null); }, [type]);
+
+            const els = SOLID_ELEMENTS[type];
+            const activeId = hovered || pinned;
+            const info = els.find(e => e.id === activeId);
+            const sol = SOLIDS[type];
+
+            const q = quiz[qi];
+            const finished = qi >= quiz.length;
+            const startQuiz = () => { AudioController.init(); AudioController.play('swoosh'); setQuiz(makeQuiz()); setQi(0); setPicked(null); setScore(0); setMode('reto'); };
+            const answer = (id) => {
+                if (picked) return;
+                setPicked(id);
+                if (id === q.id) { setScore(s => s + 1); AudioController.play('success'); }
+                else AudioController.play('pop-reverse');
+            };
+            const nextQ = () => {
+                AudioController.play('pop');
+                const n = qi + 1; setQi(n); setPicked(null);
+                if (n >= quiz.length) { fire(); AudioController.play('success'); }
+            };
+
+            const view3D = mode === 'reto' && !finished
+                ? <Solid3D key="reto" type={q.t} r={SOLIDS[q.t].demo.r} h={SOLIDS[q.t].demo.h} active={[q.id]} showLabels={false} elements={[]} />
+                : <Solid3D key="exp" type={type} r={sol.demo.r} h={sol.demo.h} active={activeId ? [activeId] : []} elements={els.filter(e => e.id !== 'lateral' && e.id !== 'superficie' || true)} onHover={onHover} onPick={onPick} />;
+            const accent = mode === 'reto' && !finished ? SOLIDS[q.t].hex : sol.hex;
+
+            return (
+                <div className="grid lg:grid-cols-[1.35fr_1fr] gap-4 lg:gap-5">
+                    {confetti}
+                    <Stage3D accent={accent} className="h-[46vh] min-h-[300px] lg:h-[calc(100dvh-11rem)] lg:min-h-[480px]">
+                        {view3D}
+                        {mode === 'reto' && !finished && (
+                            <div className="absolute top-3 left-3 z-20 px-3 py-1.5 rounded-2xl bg-black/50 backdrop-blur-md border border-white/20 font-black text-white text-sm">
+                                {SOLIDS[q.t].emoji} {SOLIDS[q.t].name}
+                            </div>
+                        )}
+                    </Stage3D>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex gap-2">
+                            <Pill active={mode === 'explore'} onClick={() => { AudioController.play('pop'); setMode('explore'); }} grad="from-[#00f5ff] to-[#3a5bff]">🔍 Explorar</Pill>
+                            <Pill active={mode === 'reto'} onClick={startQuiz} grad="from-[#ff2e93] to-[#ff9a00]">🎯 Mini-reto</Pill>
+                        </div>
+                        {mode === 'explore' ? (
+                            <>
+                                <SolidPicker value={type} onChange={setType} />
+                                <NeonCard className="p-4">
+                                    <div className="text-white/70 text-xs font-black uppercase tracking-wider mb-2">Toca o pasa el mouse por cada elemento</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {els.map(e => {
+                                            const c = elColor(type, e.id); const on = activeId === e.id;
+                                            return (
+                                                <button key={e.id} onMouseEnter={() => onHover(e.id)} onMouseLeave={() => onHover(null)} onClick={() => onPick(e.id)}
+                                                    className="text-left px-3 py-2 rounded-xl border-2 font-black text-xs sm:text-sm transition-all active:scale-95"
+                                                    style={{ borderColor: c, background: on ? c : 'rgba(255,255,255,0.06)', color: on ? '#0a0322' : '#fff', boxShadow: on ? `0 0 18px ${c}` : 'none' }}>
+                                                    <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle" style={{ background: on ? '#0a0322' : c }} />{e.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="mt-3 min-h-[4.5rem] rounded-xl p-3 border-2 bg-black/25" style={{ borderColor: info ? elColor(type, info.id) : 'rgba(255,255,255,0.15)' }}>
+                                        {info ? (<><div className="font-black text-base" style={{ color: elColor(type, info.id) }}>{info.name}</div><div className="text-white/90 font-semibold text-sm leading-snug">{info.desc}</div></>)
+                                            : <div className="text-white/70 font-semibold text-sm">Elige un elemento para verlo brillar en el {sol.name.toLowerCase()} 3D. ¡También puedes tocarlo directamente en la figura!</div>}
+                                    </div>
+                                </NeonCard>
+                                <RobotSays text={info ? `✨ ${info.name}: ${info.desc}` : `Este es el ${sol.name.toLowerCase()}. ¡Gíralo con el dedo o el mouse y descubre todos sus elementos!`} highlight={!!info} />
+                            </>
+                        ) : finished ? (
+                            <NeonCard className="p-6 text-center">
+                                <div className="text-5xl">{score >= 5 ? '🏆' : score >= 3 ? '🌟' : '💪'}</div>
+                                <div className="mt-2 text-2xl font-black text-white">¡Reto terminado!</div>
+                                <div className="mt-1 text-4xl font-black neon-text">{score} / {quiz.length}</div>
+                                <p className="mt-2 text-white/85 font-bold">{score >= 5 ? '¡Excelente! Conoces muy bien los elementos.' : score >= 3 ? '¡Muy bien! Repasa los que fallaste y vuelve a intentarlo.' : '¡Tú puedes! Explora otra vez los sólidos y juega de nuevo.'}</p>
+                                <button onClick={startQuiz} className="mt-4 h-12 px-6 rounded-2xl font-black text-white bg-gradient-to-r from-[#ff2e93] to-[#ff9a00] border-b-4 border-[#b4235f] active:border-b-0 active:translate-y-1">🔁 Jugar otra vez</button>
+                            </NeonCard>
+                        ) : (
+                            <>
+                                <NeonCard className="p-4 sm:p-5">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-white/70 text-xs font-black uppercase tracking-wider">Pregunta {qi + 1} de {quiz.length}</span>
+                                        <span className="px-2.5 py-1 rounded-full bg-[#c6ff00] text-[#0a0322] font-black text-xs">⭐ {score}</span>
+                                    </div>
+                                    <div className="mt-2 text-lg sm:text-xl font-black text-white">¿Cómo se llama el elemento que está <span className="neon-text">brillando</span> en el {SOLIDS[q.t].name.toLowerCase()}? ✨</div>
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                        {q.options.map(id => {
+                                            const isOk = picked && id === q.id, isBad = picked === id && id !== q.id;
+                                            return (
+                                                <button key={id} onClick={() => answer(id)} disabled={!!picked}
+                                                    className={`px-3 py-3 rounded-2xl border-2 font-black text-sm transition-all active:scale-95 ${isOk ? 'bg-[#39ff14] text-[#0a0322] border-white shadow-[0_0_20px_#39ff14]' : isBad ? 'bg-[#ff2e63] text-white border-white animate-pulse' : 'bg-white/10 text-white border-white/25 hover:bg-white/20'} ${picked && !isOk && !isBad ? 'opacity-50' : ''}`}>
+                                                    {isOk ? '✅ ' : isBad ? '❌ ' : ''}{elName(q.t, id)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {picked && (
+                                        <button onClick={nextQ} className="mt-3 w-full h-12 rounded-2xl font-black text-white bg-gradient-to-r from-[#00c2ff] to-[#7c3aed] border-b-4 border-[#4c1d95] active:border-b-0 active:translate-y-1 flex items-center justify-center gap-1">
+                                            {qi + 1 < quiz.length ? 'Siguiente pregunta' : 'Ver mi resultado'} <ChevronRight className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                </NeonCard>
+                                <RobotSays highlight={!picked}
+                                    text={!picked ? 'Observa bien la figura 3D: puedes girarla para ver mejor qué parte brilla.' : picked === q.id ? `¡Correcto! ${(SOLID_ELEMENTS[q.t].find(e => e.id === q.id) || {}).desc}` : `¡Casi! Era: ${elName(q.t, q.id)}. ${(SOLID_ELEMENTS[q.t].find(e => e.id === q.id) || {}).desc}`}
+                                    step={picked === q.id ? 1 : 0} maxSteps={1} />
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // =========================================================================
+        // 11. SECCIÓN 3: ¡A CALCULAR! (LABORATORIO EN VIVO + EJEMPLOS PASO A PASO)
+        // =========================================================================
+        function CalcLab({ type }) {
+            const [r, setR] = useState(3);
+            const [h, setH] = useState(5);
+            const [hl, setHl] = useState(null);
+            const rows = calcSolid(type, r, type === 'esfera' ? 2 * r : h);
+            const sol = SOLIDS[type];
+            const hlRow = rows.find(x => x.key === hl);
+            return (
+                <div className="grid lg:grid-cols-[1.1fr_1fr] gap-4 lg:gap-5">
+                    <div className="flex flex-col gap-3">
+                        <Stage3D accent={sol.hex} className="h-[40vh] min-h-[280px] lg:h-[calc(100dvh-21rem)] lg:min-h-[340px]">
+                            <Solid3D type={type} r={r} h={type === 'esfera' ? 2 * r : h} active={hlRow ? hlRow.hl : []}
+                                elements={SOLID_ELEMENTS[type].filter(e => ['radio', 'altura', 'generatriz'].includes(e.id))} />
+                        </Stage3D>
+                        <NeonCard className="p-4 grid sm:grid-cols-2 gap-4">
+                            <NeonRange label="Radio (r)" value={r} min={1} max={10} unit=" cm" c1={EL_COLORS.radio} c2="#ffe600" onChange={v => { setR(v); AudioController.play('hover'); }} />
+                            {type !== 'esfera'
+                                ? <NeonRange label="Altura (h)" value={h} min={1} max={15} unit=" cm" c1={EL_COLORS.altura} c2="#00f0ff" onChange={v => { setH(v); AudioController.play('hover'); }} />
+                                : <div className="text-white/80 text-sm font-bold self-center">En la esfera solo necesitas el <b className="text-[#ff2e63]">radio</b>. ¡Muévelo y mira cómo crecen el área y el volumen!</div>}
+                        </NeonCard>
+                    </div>
+                    <div className="flex flex-col gap-2.5">
+                        <div className="text-white/70 text-xs font-black uppercase tracking-wider">Resultados en vivo · usamos <span className="normal-case">π</span> ≈ 3,14 · pasa el dedo o el mouse por cada fila</div>
+                        {rows.map(row => {
+                            const on = hl === row.key;
+                            return (
+                                <div key={row.key} onMouseEnter={() => setHl(row.key)} onMouseLeave={() => setHl(null)} onClick={() => setHl(on ? null : row.key)}
+                                    className={`math-card cursor-pointer rounded-2xl bg-white px-3 py-2.5 border-[3px] transition-all ${on ? 'scale-[1.02]' : ''}`}
+                                    style={{ borderColor: on ? '#ffe600' : 'rgba(255,255,255,0.6)', boxShadow: on ? '0 0 24px rgba(255,230,0,0.6)' : '0 8px 20px rgba(0,0,0,0.3)' }}>
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                        <span className={`px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-black text-white bg-gradient-to-r ${sol.grad}`}>{row.name}</span>
+                                        <MathDisplay latex={row.formula} inline className="text-slate-500" />
+                                    </div>
+                                    <MathDisplay latex={row.line} />
+                                </div>
+                            );
+                        })}
+                        <RobotSays className="mt-1" text={hlRow ? `Mira cómo brilla en el ${sol.name.toLowerCase()}: «${hlRow.name}». Cambia los deslizadores y el resultado se recalcula al instante.` : `Mueve los deslizadores: el ${sol.name.toLowerCase()} cambia de tamaño y las fórmulas se actualizan solas. ⚡`} highlight={!!hlRow} />
+                    </div>
+                </div>
+            );
+        }
+
+        function CalcExamples({ type }) {
+            const mags = MAGNITUDES[type];
+            const [mag, setMag] = useState(mags[0].key);
+            const [exIdx, setExIdx] = useState(0);
+            const [step, setStep] = useState(0);
+            const [confetti, fire] = useConfetti();
+            const listRef = useRef(null);
+            useEffect(() => { setMag(MAGNITUDES[type][0].key); setExIdx(0); setStep(0); }, [type]);
+            useEffect(() => { setStep(0); }, [mag, exIdx]);
+            useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [step, mag, exIdx]);
+
+            const list = (EXAMPLES[type] && EXAMPLES[type][mag]) || EXAMPLES[type][mags[0].key];
+            const ex = list[Math.min(exIdx, list.length - 1)];
+            const maxS = ex.steps.length - 1;
+            const cur = ex.steps[Math.min(step, maxS)];
+            const sol = SOLIDS[type];
+
+            const next = () => {
+                AudioController.init(); AudioController.startBGM();
+                if (step < maxS) { const n = step + 1; setStep(n); if (n === maxS) { AudioController.play('success'); fire(); } else AudioController.play('pop'); }
+                else {
+                    AudioController.play('swoosh');
+                    if (exIdx < list.length - 1) setExIdx(exIdx + 1);
+                    else { const mi = mags.findIndex(m => m.key === mag); if (mi < mags.length - 1) { setMag(mags[mi + 1].key); setExIdx(0); } else { setStep(0); } }
+                }
+            };
+            const prev = () => { if (step > 0) { setStep(step - 1); AudioController.play('pop-reverse'); } };
+            const miNow = mags.findIndex(m => m.key === mag);
+            const nextLabel = step < maxS ? '¡Siguiente paso!' : exIdx < list.length - 1 ? 'Ir al Ejemplo 2' : miNow < mags.length - 1 ? `Ir a: ${mags[miNow + 1].name}` : 'Repetir ejemplo';
+
+            return (
+                <div className="grid lg:grid-cols-[1fr_1.25fr] gap-4 lg:gap-5">
+                    {confetti}
+                    <div className="flex flex-col gap-3">
+                        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                            {mags.map(m => <Pill key={m.key} active={mag === m.key} grad={sol.grad} onClick={() => { AudioController.play('pop'); setMag(m.key); setExIdx(0); }}>{m.name}</Pill>)}
+                        </div>
+                        <div className="flex gap-2">
+                            {list.map((e, i) => <Pill key={i} active={exIdx === i} grad="from-[#ffe600] to-[#ff8a00]" className={exIdx === i ? '!text-[#0a0322]' : ''} onClick={() => { AudioController.play('pop'); setExIdx(i); }}>Ejemplo {i + 1}</Pill>)}
+                        </div>
+                        <Stage3D accent={sol.hex} className="h-[36vh] min-h-[260px] lg:h-[calc(100dvh-20rem)] lg:min-h-[320px]">
+                            <Solid3D type={type} r={ex.r} h={type === 'esfera' ? 2 * ex.r : ex.h} active={cur.hl}
+                                elements={SOLID_ELEMENTS[type].filter(e => ['radio', 'altura', 'generatriz'].includes(e.id)).map(e => ({ ...e, name: e.id === 'radio' ? `r = ${ex.r} ${ex.u}` : e.id === 'altura' ? `h = ${ex.h} ${ex.u}` : (type === 'cono' ? `g = ${Math.round(Math.sqrt(ex.r * ex.r + ex.h * ex.h))} ${ex.u}` : `g = h = ${ex.h} ${ex.u}`) }))} />
+                        </Stage3D>
+                    </div>
+                    <div className="relative flex flex-col rounded-[1.6rem] overflow-hidden bg-white border-[5px] border-white shadow-[0_0_0_3px_rgba(255,61,242,0.7),0_25px_55px_rgba(0,0,0,0.5)] min-h-[440px] lg:h-[calc(100dvh-11rem)]">
+                        <DrawingCanvas />
+                        <div className="shrink-0 bg-[#0a0322] px-4 pt-12 sm:pt-3 pb-3 border-b-4" style={{ borderColor: sol.hex }}>
+                            <div className="flex items-center gap-2 sm:pr-64">
+                                <span className={`px-2 py-0.5 rounded-lg text-[11px] font-black text-white bg-gradient-to-r ${sol.grad}`}>{sol.emoji} {sol.name} · Ejemplo {exIdx + 1}</span>
+                            </div>
+                            <div className="mt-1.5 text-lg sm:text-xl font-black text-white">{ex.title}</div>
+                            <p className="text-white/90 font-semibold text-sm sm:text-base leading-snug"><RichText text={ex.text} /></p>
+                        </div>
+                        <div ref={listRef} className="flex-1 overflow-y-auto scrollbar-hide p-3 sm:p-4 space-y-2.5 bg-slate-50 relative">
+                            <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[radial-gradient(#0f172a_1.5px,transparent_1.5px)] [background-size:20px_20px]" />
+                            {ex.steps.slice(0, step + 1).map((s, i) => {
+                                const isCur = i === step, isFinal = s.final;
+                                return (
+                                    <div key={`${type}-${mag}-${exIdx}-${i}`} className={`relative rounded-2xl px-3 py-2 border-2 animate-slideInRight ${isFinal && isCur ? 'bg-gradient-to-r from-[#d9ffe6] to-[#fff9c4] border-[#10b981] animate-finalGlowNeon' : isCur ? 'bg-white border-[#ff3df2] shadow-[0_0_16px_rgba(255,61,242,0.35)]' : 'bg-white/80 border-slate-200'}`}>
+                                        <div className={`text-[11px] sm:text-xs font-black mb-0.5 ${isFinal ? 'text-[#047857]' : isCur ? 'text-[#c026d3]' : 'text-slate-400'}`}>{s.badge}</div>
+                                        <div className={isFinal ? 'math-final' : isCur ? 'math-current' : 'math-history'}><MathDisplay latex={s.latex} /></div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="shrink-0 bg-gradient-to-b from-[#f5e1ff] to-[#d9c2ff] p-2.5 border-t-[3px] border-white">
+                            <RobotSays text={cur.speech} step={step} maxSteps={maxS} highlight={step > 0} className="mb-2" />
+                            <div className="flex items-stretch gap-2 h-11">
+                                <button onClick={prev} disabled={step === 0} className="flex-[0.8] rounded-l-2xl bg-[#c4b5fd] text-[#3b0764] font-black text-sm border-b-4 border-[#7c3aed] active:border-b-0 active:translate-y-1 disabled:opacity-40 flex items-center justify-center gap-1"><ChevronLeft className="w-5 h-5" /><span className="hidden sm:inline">Atrás</span></button>
+                                <div className="bg-[#7c3aed] text-white font-black px-3 text-xs sm:text-sm flex items-center justify-center border-b-4 border-[#4c1d95] whitespace-nowrap">Paso {step + 1}/{maxS + 1}</div>
+                                <button onClick={next} className={`flex-[2] rounded-r-2xl text-white font-black text-xs sm:text-sm border-b-4 active:border-b-0 active:translate-y-1 flex items-center justify-center gap-1 ${step === maxS ? 'bg-gradient-to-r from-[#10b981] to-[#047857] border-[#065f46] animate-pulse' : 'bg-gradient-to-r from-[#ff2e93] to-[#ff9a00] border-[#b4235f]'}`}>{nextLabel}<ChevronRight className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function CalcSection() {
+            const [type, setType] = useState('cilindro');
+            const [sub, setSub] = useState('ej');
+            return (
+                <div className="flex flex-col gap-3">
+                    <div className="flex flex-wrap gap-2 items-center justify-between">
+                        <SolidPicker value={type} onChange={setType} />
+                        <div className="flex gap-2">
+                            <Pill active={sub === 'ej'} onClick={() => { AudioController.play('pop'); setSub('ej'); }} grad="from-[#ffe600] to-[#ff8a00]" className={sub === 'ej' ? '!text-[#0a0322]' : ''}>📝 Ejemplos paso a paso</Pill>
+                            <Pill active={sub === 'lab'} onClick={() => { AudioController.play('pop'); setSub('lab'); }} grad="from-[#c6ff00] to-[#00d68f]" className={sub === 'lab' ? '!text-[#0a0322]' : ''}>🧪 Laboratorio en vivo</Pill>
+                        </div>
+                    </div>
+                    {sub === 'lab' ? <CalcLab key={type} type={type} /> : <CalcExamples key={type} type={type} />}
+                </div>
+            );
+        }
+
+        // =========================================================================
+        // 12. APLICACIÓN PRINCIPAL
+        // =========================================================================
+        const TABS = [
+            { key: 'rev', short: '¿Qué es?', title: '1 · ¿Qué es?', grad: 'from-[#00f5ff] to-[#3a5bff]' },
+            { key: 'elem', short: 'Elementos', title: '2 · Elementos', grad: 'from-[#ff2e93] to-[#b14bff]' },
+            { key: 'calc', short: '¡A calcular!', title: '3 · ¡A calcular!', grad: 'from-[#ffe600] to-[#ff8a00]' }
+        ];
+
+        const BrandBadge = ({ onClick, small }) => (
+            <button onClick={onClick} className={`inline-flex items-center gap-2 rounded-2xl border-2 border-[#ffe600] bg-white/10 backdrop-blur-md text-[#ffe600] font-black uppercase tracking-wider shadow-[0_0_16px_rgba(255,230,0,0.45)] ${small ? 'px-2.5 py-1.5 text-[11px] sm:text-xs' : 'px-4 py-2 text-xs sm:text-base'}`}>
+                <Rocket className={small ? 'w-4 h-4' : 'w-5 h-5'} /> TuProfe20 Lab
+            </button>
+        );
+
+        function App() {
+            const [view, setView] = useState('home');
+            const [tab, setTab] = useState('rev');
+            const [muted, setMuted] = useState(false);
+            const go = (t) => { AudioController.init(); AudioController.startBGM(); AudioController.play('swoosh'); setTab(t); setView('lab'); window.scrollTo(0, 0); };
+            const toggleMute = () => { AudioController.init(); setMuted(AudioController.toggleMute()); };
+            const MuteBtn = (
+                <button onClick={toggleMute} title={muted ? 'Activar sonido' : 'Silenciar'} className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-2xl bg-white/10 border-2 border-white/30 text-white flex items-center justify-center backdrop-blur-md hover:bg-white/20 active:scale-95">
+                    {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                </button>
+            );
+
+            if (view === 'home') {
+                const cards = [
+                    { t: 'rev', icon: '🌀', title: '¿Qué es un sólido de revolución?', desc: 'Haz girar un rectángulo, un triángulo y un semicírculo 360° y mira nacer el cilindro, el cono y la esfera.', grad: 'from-[#00f5ff] via-[#2979ff] to-[#7c3aed]' },
+                    { t: 'elem', icon: '🔦', title: 'Sus elementos', desc: 'Eje, radio, altura, generatriz, bases, vértice, centro… ¡Tócalos y se iluminan en 3D! Incluye un mini-reto.', grad: 'from-[#ff2e93] via-[#ff3df2] to-[#7c3aed]' },
+                    { t: 'calc', icon: '🧮', title: '¡A calcular!', desc: 'Área lateral, área total y volumen con 2 ejemplos paso a paso de cada uno y un laboratorio en vivo.', grad: 'from-[#ffe600] via-[#ff8a00] to-[#ff2e63]' }
+                ];
+                return (
+                    <div className="relative min-h-[100dvh] app-bg text-white" onClick={() => { AudioController.init(); }}>
+                        <FloatingBackground />
+                        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8 flex flex-col min-h-[100dvh]">
+                            <div className="flex justify-between items-center"><BrandBadge /> {MuteBtn}</div>
+                            <div className="text-center mt-6 sm:mt-10">
+                                <div className="inline-block px-4 py-1.5 rounded-full bg-white/10 border border-[#00f0ff]/60 text-[#5ff6ff] font-black text-[11px] sm:text-sm tracking-widest uppercase">Geometría del espacio · Aula 2</div>
+                                <h1 className="mt-4 font-black leading-[1.05] text-4xl sm:text-6xl lg:text-7xl tracking-tight">
+                                    <span className="text-[#ffe600] drop-shadow-[0_0_18px_rgba(255,230,0,0.6)]">TuProfe20 Lab</span>
+                                    <span className="text-white/70"> · </span>
+                                    <br className="sm:hidden" />
+                                    <span className="neon-text-big">Sólidos de revolución</span>
+                                </h1>
+                                <p className="mt-4 max-w-2xl mx-auto text-white/85 font-bold text-sm sm:text-lg">Descubre cómo una figura plana que gira crea un cuerpo 3D, aprende sus elementos y calcula su área y su volumen. 🚀</p>
+                                <div className="mt-5 flex justify-center gap-3 sm:gap-5 text-4xl sm:text-5xl">
+                                    {SOLID_KEYS.map((k, i) => <span key={k} className="animate-robotFloat inline-block" style={{ animationDelay: `${i * 0.4}s`, filter: `drop-shadow(0 0 14px ${SOLIDS[k].hex})` }}>{SOLIDS[k].emoji}</span>)}
+                                </div>
+                            </div>
+                            <div className="mt-8 grid sm:grid-cols-3 gap-4">
+                                {cards.map((c, i) => (
+                                    <button key={c.t} onClick={() => go(c.t)} className={`group text-left p-5 rounded-[1.8rem] bg-gradient-to-br ${c.grad} border-[3px] border-white/60 shadow-[0_18px_40px_rgba(0,0,0,0.45)] hover:-translate-y-1.5 hover:shadow-[0_0_40px_rgba(255,255,255,0.35)] transition-all relative overflow-hidden`}>
+                                        <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/20 blur-xl" />
+                                        <div className="flex items-center justify-between">
+                                            <span className="px-2.5 py-1 rounded-full bg-black/30 font-black text-xs">Parte {i + 1}</span>
+                                            <span className="text-3xl">{c.icon}</span>
+                                        </div>
+                                        <div className="mt-3 text-xl font-black leading-tight drop-shadow">{c.title}</div>
+                                        <div className="mt-1.5 text-sm font-bold text-white/95 leading-snug drop-shadow">{c.desc}</div>
+                                        <div className="mt-4 inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white text-[#0a0322] font-black text-sm group-hover:gap-2 transition-all">¡Vamos! <ChevronRight className="w-4 h-4" /></div>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="mt-auto pt-8 text-center text-white/60 font-black text-xs flex items-center justify-center gap-1.5"><Rocket className="w-4 h-4" /> TuProfe20 Lab</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="relative min-h-[100dvh] app-bg text-white">
+                    <FloatingBackground />
+                    <div className="relative z-10 max-w-[1500px] mx-auto px-3 sm:px-5 py-3 flex flex-col gap-3">
+                        <header className="flex items-center gap-2 sm:gap-3">
+                            <button onClick={() => { AudioController.play('swoosh'); setView('home'); }} title="Portada" className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-2xl bg-white/10 border-2 border-white/30 flex items-center justify-center backdrop-blur-md hover:bg-white/20 active:scale-95"><Home className="w-5 h-5" /></button>
+                            <h1 className="flex-1 min-w-0 font-black text-[15px] sm:text-2xl leading-tight">
+                                <span className="text-[#ffe600]">TuProfe20 Lab</span> <span className="text-white/60">·</span> <span className="neon-text">Sólidos de revolución</span>
+                            </h1>
+                            {MuteBtn}
+                        </header>
+                        <nav className="flex gap-2 overflow-x-auto scrollbar-hide">
+                            {TABS.map(t => (
+                                <Pill key={t.key} active={tab === t.key} grad={t.grad} onClick={() => go(t.key)} className={tab === t.key && t.key === 'calc' ? '!text-[#0a0322]' : ''}>{t.title}</Pill>
+                            ))}
+                        </nav>
+                        <main>
+                            {tab === 'rev' && <RevolutionSection />}
+                            {tab === 'elem' && <ElementsSection />}
+                            {tab === 'calc' && <CalcSection />}
+                        </main>
+                        <footer className="py-2 text-center text-white/50 font-black text-[11px] flex items-center justify-center gap-1.5"><Rocket className="w-3.5 h-3.5" /> TuProfe20 Lab</footer>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+    </script>
+</body>
+</html>
